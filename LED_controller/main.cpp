@@ -7,6 +7,10 @@
 #include "DS1307.h"
 #include "ST7789.h"
 
+// Флаги
+char syncflag = 1;
+
+
 // Переменные экрана
 char xpos;
 char ypos;
@@ -16,7 +20,7 @@ char green = 55;
 char blue = 45;
 
 // Переменные времени
-char time[7] = {40, 59, 19, 2, 21, 5, 24};											// sec, min, hour, day, date, month, year
+char time[7] = {0, 8, 15, 4, 23, 5, 24};											// sec, min, hour, day, date, month, year
 float timeDec = (float)time[0] + (float)time[1] / 60.0 + (float)time[2] / 3600.0;	// Реальное время в десятичном виде
 char timecomp = time[0];															// Секунда сравнения
 
@@ -162,18 +166,51 @@ ISR(TIMER1_COMPA_vect)
 	
 	
 	// Синхронизация с DS1307 в полночь
-	if (time[0] == 0 && time[1] == 0 && time[2] == 0)
+	if (time[0] == 0 && time[1] == 0 && time[2] == 0 && syncflag == 1)
 	{
 		DS1307::readTime(time);
+		syncflag = 0;
+	}
+	
+	if (time[0] == 0 && time[1] == 1 && time[2] == 0)
+	{
+		syncflag = 1;
 	}
 	
 	
 	sei();
 }
 
+ISR(INT0_vect)
+{
+	time[0]++;
+}
+
+ISR(INT1_vect)
+{
+	time[0]--;
+}
+
+ISR(INT2_vect)
+{
+	DS1307::writeTime(time);
+}
+
+
 void setup(void)
 {
 	sei();
+	
+	
+	////////////// Внешние прерывания //////////////
+	GICR |= (1 << INT1)|(1 << INT0)|(1 << INT2);						// General Interrupt Control Register - Установка битов INT1, INT0 или INT2 разрешает прерывания при возникновении события на соответствующем выводе микроконтроллера AVR, а сброс — запрещает.
+	MCUCR |= (1 << ISC11)|(0 << ISC10)|(1 << ISC01)|(0 << ISC00);		// 10	- Перывание по спадающему фронту INT0, INT1
+	MCUCSR |= (0 << ISC2);												// 0	- Перывание по спадающему фронту INT2
+		
+	DDRA = 0xff;
+	PORTA = 0;
+	
+	
 	//////////// Таймер 1 (16 бит) Часы ////////////
 	OCR1A   = 14398;	// Запись значения прерывания CTC производится до инициализации таймера
 	TCCR1A |= (0 << COM1A1)|(0 << COM1A0)|(0 << COM1B1)|(0 << COM1B0)|(0 << FOC1A)|(0 << FOC1B)|(0 << WGM11)|(0 << WGM10);	// COM - порты, FOC - ?, WGM - режим CTC, CS - прескелер
