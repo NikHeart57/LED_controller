@@ -332,7 +332,7 @@ namespace ST7789
 		sendData(y + size - 1);
 
 		sendCommand(0x2C);
-				
+					
 		for(int i = 0; i < (int)(size*size); i++)		// Отрисовка
 		{
 			sendData(red << 2);

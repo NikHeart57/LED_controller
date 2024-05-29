@@ -7,7 +7,6 @@
 #include "DS1307.h"
 #include "ST7789.h"
 
-
 // Флаги
 unsigned char flagsync = 1;
 unsigned char flagsetting = 11;
@@ -17,7 +16,6 @@ unsigned char flagsettingwordupdate = 0;
 unsigned char flagsettingwordupdate2 = 0;
 unsigned char flagsceduleupdate = 1;
 
-
 // Переменные экрана
 char xpos;
 char ypos;
@@ -25,7 +23,6 @@ char buffer[9];
 char red = 60;
 char green = 55;
 char blue = 45;
-
 
 // Переменные времени
 char time[7] = {0, 0, 8, 4, 23, 5, 24};												// sec, min, hour, day, date, month, year
@@ -35,10 +32,10 @@ float timeDec = (float)time[0] + (float)time[1] / 60.0 + (float)time[2] / 3600.0
 
 char timeschedule[4][2] =						// Расписание
 {
-	{5, 00},
+	{8, 00},
 	{10, 00},
-	{17, 00},
-	{22, 00},
+	{18, 00},
+	{20, 00},
 };
 
 
@@ -531,7 +528,7 @@ ISR(INT0_vect)
 	if (flagsetting == 3)
 	{
 		
-		if ((timeschedule[0][0] + 1) * 60 + timeschedule[0][1] <= timeschedule[1][0] * 60 + (timeschedule[1][1] - 1))
+		if ((timeschedule[0][0] + 1) * 60 + timeschedule[0][1] <= timeschedule[1][0] * 60 + timeschedule[1][1])
 		{
 			timeschedule[0][0]++;
 		}
@@ -546,7 +543,11 @@ ISR(INT0_vect)
 
 	if (flagsetting == 4)
 	{
-		timeschedule[0][1]++;
+		
+		if (timeschedule[0][0] * 60 + timeschedule[0][1] + 2 <= timeschedule[1][0] * 60 + timeschedule[1][1])
+		{
+			timeschedule[0][1]++;
+		}
 		
 		if (timeschedule[0][1] >= 60)
 		{
@@ -558,7 +559,11 @@ ISR(INT0_vect)
 
 	if (flagsetting == 5)
 	{
-		timeschedule[1][0]++;
+		if ((timeschedule[1][0] + 1) * 60 + timeschedule[1][1] <= timeschedule[2][0] * 60 + timeschedule[2][1])
+		{
+			timeschedule[1][0]++;
+		}
+		
 		
 		if (timeschedule[1][0] >= 24)
 		{
@@ -570,7 +575,12 @@ ISR(INT0_vect)
 
 	if (flagsetting == 6)
 	{
-		timeschedule[1][1]++;
+		
+		if (timeschedule[1][0] * 60 + timeschedule[1][1] + 2 <= timeschedule[2][0] * 60 + timeschedule[2][1])
+		{
+			timeschedule[1][1]++;
+		}
+		
 		
 		if (timeschedule[1][1] >= 60)
 		{
