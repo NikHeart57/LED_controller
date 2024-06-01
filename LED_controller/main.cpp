@@ -1,6 +1,6 @@
 #define F_CPU 14745600UL
 
-#include <stdlib.h>					// itoa() atoi()
+#include <stdlib.h>						// включает функции - itoa() atoi()
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
@@ -25,21 +25,17 @@ char green = 55;
 char blue = 45;
 
 // Переменные времени
-char time[7] = {0, 0, 8, 4, 23, 5, 24};												// sec, min, hour, day, date, month, year
-char timesetting[7];
-float timeDec = (float)time[0] + (float)time[1] / 60.0 + (float)time[2] / 3600.0;	// Реальное время в десятичном виде
-
-
-char timeschedule[4][2] =						// Расписание
+char time[7] = {0, 0, 8, 4, 23, 5, 24};			// Массив времени - sec, min, hour, day, date, month, year
+char timesetting[7];							// Массив для временного хранения времени во время настройки
+char timeschedule[4][2] =						// Массив времени расписания
 {
-	{8, 00},
-	{10, 00},
-	{18, 00},
-	{20, 00},
+	{8, 00},	// Рассвет	часы, минуты
+	{10, 00},	// День		часы, минуты
+	{18, 00},	// Закат	часы, минуты
+	{20, 00},	// Ночь		часы, минуты
 };
-
-
-float timescheduleDec[4]=
+float timeDec = (float)time[0] + (float)time[1] / 60.0 + (float)time[2] / 3600.0;	// Реальное время в десятичном виде
+float timescheduleDec[4]=															// Время расписания в десятичном виде
 {
 	(float)timeschedule[0][0] + (float)timeschedule[0][1] / 60.0,
 	(float)timeschedule[1][0] + (float)timeschedule[1][1] / 60.0,
@@ -48,11 +44,7 @@ float timescheduleDec[4]=
 };
 
 
-char wordschedule[4][8] = {"Рассвет", "День   ", "Закат  ", "Ночь   "};
-
-
-
-// Функции
+// Прототипы функций
 void setup(void);
 void printNumber(char number, char* buffer, char* xpos, char* ypos, char red, char green, char blue, char size);
 inline void reverse(char* str, int len);
@@ -61,27 +53,18 @@ char* ftoa(float n, char* res, int afterpoint);
 
 
 
-
-
 int main(void)
 {
-	_delay_ms(100);
+	_delay_ms(200);
 	setup();
+	ST7789::init();
 	ST7789::fillScreen(0, 0, 0);
-	
-	
 	DS1307::readTime(time);
-	
-	
-	
-	/*
-	*	Слова в расписании оформить отдельными функциями чтобы они н робновлялись каждый раз вместе с основной прораммой
-	*	вообще один раз их печатать и все
-	*/
-	
+		
 	while (1)
 	{
-		/*	
+		/*
+		// Тестовый код для отладки
 		xpos = 210;
 		ypos = 210;
 		ST7789::printString("  ", &xpos, &ypos, 10, 60, 0, 2);
@@ -106,7 +89,7 @@ int main(void)
 		*/
 		
 		//==============================================================================
-		//									Блок времени
+		//									Блок часов
 		//==============================================================================
 		
 		if (flagclockupdate)
@@ -116,7 +99,8 @@ int main(void)
 			xpos = 0;
 			ypos = 0;
 			
-			if (flagsetting != 2 && flagsetting != 1 && flagsetting != 0)					// Нормальное отображение
+			// Нормальное отображение
+			if (flagsetting != 2 && flagsetting != 1 && flagsetting != 0)
 			{
 				printNumber(time[2], buffer, &xpos, &ypos, red, green, blue, 5);
 				ST7789::printString(":", &xpos, &ypos, red, green, blue, 5);
@@ -124,8 +108,10 @@ int main(void)
 				ST7789::printString(":", &xpos, &ypos, red, green, blue, 5);
 				printNumber(time[0], buffer, &xpos, &ypos, red, green, blue, 5);
 			}
-			else 																		// "Настроечное" отображение
+			// "Настроечное" отображение
+			else
 			{
+				// Настройка часов
 				if (flagsetting == 2)
 				{
 					xpos = 0;
@@ -139,6 +125,7 @@ int main(void)
 					printNumber(timesetting[2], buffer, &xpos, &ypos, red, green, blue, 5);
 				}
 				
+				// Настройка минут
 				if (flagsetting == 1)
 				{
 					xpos = 90;
@@ -152,7 +139,7 @@ int main(void)
 					printNumber(timesetting[1], buffer, &xpos, &ypos, red, green, blue, 5);
 				}
 				
-
+				// Настройка секунд
 				if (flagsetting == 0)
 				{
 					xpos = 180;
@@ -170,7 +157,7 @@ int main(void)
 		
 		
 		//==============================================================================
-		//						   Блок время суток / настройка
+		//						 Блок "Время суток" / "Настройка"
 		//==============================================================================
 		
 		if(flagwordupdate)
@@ -180,10 +167,13 @@ int main(void)
 			xpos = 0;
 			ypos = 45;
 			
+			// Нормальное отображение
 			if (flagsetting == 11)
 			{
+				// Разрешение отображение слова "Настройка"
 				flagsettingwordupdate = 1;
 				
+				// Если есть разрешение на "нормальное" отображение то очистить экран
 				if (flagsettingwordupdate2)
 				{
 					flagsettingwordupdate2--;
@@ -201,54 +191,71 @@ int main(void)
 					timescheduleDec[i] = (float)timeschedule[i][0] + (float)timeschedule[i][1] / 60.0;
 				}
 				
-				// Определение слова и скважности
-				if (timeDec < timescheduleDec[0])													// Время меньше чем время рассвета = ночь - 3
+				// Определение времени суток, показываемого слова и скважности
+				// Время меньше чем время рассвета => ночь
+				if (timeDec < timescheduleDec[0])
 				{
-					ST7789::printString(wordschedule[3], &xpos, &ypos, red, green, blue, 5);
-					OCR0 = 0;
-				}
-				else if (timeDec < timescheduleDec[1])												// Время меньше чем время начала дня = рассвет - 0
-				{
-					ST7789::printString(wordschedule[0], &xpos, &ypos, red, green, blue, 5);
-					OCR0 = (char)(((timeDec - timescheduleDec[0])/(timescheduleDec[1] - timescheduleDec[0])) * 255.0);
-				}
-				else if (timeDec < timescheduleDec[2])												// Время меньше чем время конца дня = день - 1
-				{
-					ST7789::printString(wordschedule[1], &xpos, &ypos, red, green, blue, 5);
-					OCR0 = 255;
-				}
-				else if (timeDec < timescheduleDec[3])												// Время меньше чем время конца заката = закат - 2
-				{
-					ST7789::printString(wordschedule[2], &xpos, &ypos, red, green, blue, 5);
-					OCR0 = (char)((1.0 - ((timeDec - timescheduleDec[2])/(timescheduleDec[3] - timescheduleDec[2]))) * 255.0);
-				}
-				else																				// В остальных случаях ночь - 3
-				{
-					ST7789::printString(wordschedule[3], &xpos, &ypos, red, green, blue, 5);
+					ST7789::printString("Ночь   ", &xpos, &ypos, red, green, blue, 5);
 					OCR0 = 0;
 				}
 				
+				// Время меньше чем время начала дня => рассвет
+				else if (timeDec < timescheduleDec[1])
+				{
+					ST7789::printString("Рассвет", &xpos, &ypos, red, green, blue, 5);
+					OCR0 = (char)(((timeDec - timescheduleDec[0])/(timescheduleDec[1] - timescheduleDec[0])) * 255.0);
+				}
+				
+				// Время меньше чем время конца дня => день
+				else if (timeDec < timescheduleDec[2])
+				{
+					ST7789::printString("День   ", &xpos, &ypos, red, green, blue, 5);
+					OCR0 = 255;
+				}
+				
+				// Время меньше чем время конца заката => закат
+				else if (timeDec < timescheduleDec[3])
+				{
+					ST7789::printString("Закат  ", &xpos, &ypos, red, green, blue, 5);
+					OCR0 = (char)((1.0 - ((timeDec - timescheduleDec[2])/(timescheduleDec[3] - timescheduleDec[2]))) * 255.0);
+				}
+				
+				// В остальных случаях ночь
+				else
+				{
+					ST7789::printString("Ночь   ", &xpos, &ypos, red, green, blue, 5);
+					OCR0 = 0;
+				}
+				
+				// Печать скважности
 				xpos = 0;
 				ypos = 90;
 				
-				ST7789::printString("осв.", &xpos, &ypos, red, green, blue, 3);						// Печать осв.
+				ST7789::printString("осв.", &xpos, &ypos, red, green, blue, 3);
 				
-				if ((float)OCR0/2.55 < 10)															// Печать процента
+				
+				if ((float)OCR0/2.55 < 10)
 				{
 					ST7789::printString("0", &xpos, &ypos, red, green, blue, 3);
 				}
-				
 				ST7789::printString(ftoa(((float)OCR0/2.55), buffer, 2), &xpos, &ypos, red, green, blue, 3);
+				
 				ST7789::printString("%  ", &xpos, &ypos, red, green, blue, 3);
 			}
+			// "Настроечное" отображение
 			else if(flagsettingwordupdate)
 			{
 				flagsettingwordupdate--;
+				
+				// Разрешить нормальное отображение
 				flagsettingwordupdate2 = 1;
+				
+				// Очисить экран
 				ST7789::drawSquare(0, 40, 0, 0, 0, 80);
 				ST7789::drawSquare(80, 40, 0, 0, 0, 80);
 				ST7789::drawSquare(160, 40, 0, 0, 0, 80);
 				
+				// Написать слово "Настройка"
 				xpos = 9;
 				ypos = 70;
 				ST7789::printString("Настройка", &xpos, &ypos, red, green, blue, 4);
@@ -291,9 +298,9 @@ int main(void)
 			xpos = 0;
 			ypos = 135;
 			
-			if(flagsetting == 11)
+			// Нормальное отображение
+			if(flagsetting == 11)							
 			{
-				
 				printNumber(timeschedule[0][0], buffer, &xpos, &ypos, red, green, blue, 3);
 				ST7789::printString(":", &xpos, &ypos, red, green, blue, 3);
 				printNumber(timeschedule[0][1], buffer, &xpos, &ypos, red, green, blue, 3);
@@ -320,9 +327,10 @@ int main(void)
 				printNumber(timeschedule[3][1], buffer, &xpos, &ypos, red, green, blue, 3);
 				ST7789::printString(" Ночь", &xpos, &ypos, red, green, blue, 3);
 			}
+			// "Настроечное" отображение
 			else
 			{
-				
+				// Часы рассвета
 				if (flagsetting == 3)
 				{
 					xpos = 0;
@@ -336,7 +344,7 @@ int main(void)
 					printNumber(timeschedule[0][0], buffer, &xpos, &ypos, red, green, blue, 3);
 				}
 				
-				
+				// Минуты рассвета
 				if (flagsetting == 4)
 				{
 					xpos = 54;
@@ -350,6 +358,7 @@ int main(void)
 					printNumber(timeschedule[0][1], buffer, &xpos, &ypos, red, green, blue, 3);
 				}
 			
+				// Часы Дня
 				if (flagsetting == 5)
 				{
 					xpos = 0;
@@ -363,6 +372,7 @@ int main(void)
 					printNumber(timeschedule[1][0], buffer, &xpos, &ypos, red, green, blue, 3);
 				}
 			
+				// Минуты дня
 				if (flagsetting == 6)
 				{
 					xpos = 54;
@@ -376,6 +386,7 @@ int main(void)
 					printNumber(timeschedule[1][1], buffer, &xpos, &ypos, red, green, blue, 3);
 				}
 			
+				// Часы заката
 				if (flagsetting == 7)
 				{
 					xpos = 0;
@@ -389,6 +400,7 @@ int main(void)
 					printNumber(timeschedule[2][0], buffer, &xpos, &ypos, red, green, blue, 3);
 				}
 			
+				// Минуты заката
 				if (flagsetting == 8)
 				{
 					xpos = 54;
@@ -402,6 +414,7 @@ int main(void)
 					printNumber(timeschedule[2][1], buffer, &xpos, &ypos, red, green, blue, 3);
 				}
 			
+				// Часы ночи
 				if (flagsetting == 9)
 				{
 					xpos = 0;
@@ -415,6 +428,7 @@ int main(void)
 					printNumber(timeschedule[3][0], buffer, &xpos, &ypos, red, green, blue, 3);
 				}
 			
+				// Минуты ночи
 				if (flagsetting == 10)
 				{
 					xpos = 54;
@@ -433,46 +447,49 @@ int main(void)
 }
 
 
-
-
-
 ISR(TIMER1_COMPA_vect)
 {
-	cli();	
-	time[0]++;						// Инкремент секунды
+	cli();
+	// Инкремент секунды	
+	time[0]++;
 	
+	// Инкремент минуты
 	if (time[0] >= 60)
 	{
-		time[1]++;					// Инкремент минуты
+		time[1]++;					
 		time[0] = 0;
+		
+		// Инкремент часа
+		if (time[1] >= 60)
+		{
+			time[2]++;
+			time[1] = 0;
+			
+			// Обнуление времени в конце дня
+			if (time[2] >= 24)
+			{
+				time[0] = 0;
+				time[1] = 0;
+				time[2] = 0;
+			}
+		}
 	}
+
 	
-	if (time[1] >= 60)
-	{
-		time[2]++;
-		time[1] = 0;				// Инкремент часа
-	}
-	
-	if (time[2] >= 24)				// Сутки
-	{
-		time[0] = 0;
-		time[1] = 0;
-		time[2] = 0;
-	}
-	
-	
-	// Синхронизация с DS1307 в полночь
+	// Синхронизация с DS1307 в конце дня
 	if (time[0] == 0 && time[1] == 0 && time[2] == 0 && flagsync == 1)
 	{
 		DS1307::readTime(time);
 		flagsync = 0;
 	}
 	
+	// Разрешение на синхронизацию в 00:01:00
 	if (time[0] == 0 && time[1] == 1 && time[2] == 0)
 	{
 		flagsync = 1;
 	}
 	
+	// Разрешение обновления часов и слова времени суток
 	flagclockupdate = 1;
 	flagwordupdate = 1;
 	
@@ -483,12 +500,15 @@ ISR(INT0_vect)
 {
 	cli();
 	
-	_delay_ms(20);
-	if (PIND & (1 << PIND2))		// Если высокий уровень
+	// Защита от дребеза
+	// Если после паузы высокий уровень то return
+	_delay_ms(30);
+	if (PIND & (1 << PIND2))
 	{
 		return;
 	}
 	
+	// Обработка кнопки
 	if (flagsetting == 0)
 	{
 		timesetting[0]++;
@@ -525,9 +545,10 @@ ISR(INT0_vect)
 		flagclockupdate = 1;
 	}
 
+	// Расписание 
+	// рассвет часы++
 	if (flagsetting == 3)
 	{
-		
 		if ((timeschedule[0][0] + 1) * 60 + timeschedule[0][1] <= timeschedule[1][0] * 60 + timeschedule[1][1])
 		{
 			timeschedule[0][0]++;
@@ -535,12 +556,14 @@ ISR(INT0_vect)
 		
 		if (timeschedule[0][0] >= 24)
 		{
-			timeschedule[0][0] = 0;
+			timeschedule[0][0] = 23;
 		}
 		
 		flagsceduleupdate = 1;
 	}
-
+	
+	// Расписание
+	// рассвет минуты++
 	if (flagsetting == 4)
 	{
 		
@@ -551,90 +574,106 @@ ISR(INT0_vect)
 		
 		if (timeschedule[0][1] >= 60)
 		{
-			timeschedule[0][1] = 0;
+			timeschedule[0][1] = 59;
 		}
 		
 		flagsceduleupdate = 1;
 	}
 
+	// Расписание
+	// день часы++
 	if (flagsetting == 5)
-	{
+	{	
 		if ((timeschedule[1][0] + 1) * 60 + timeschedule[1][1] <= timeschedule[2][0] * 60 + timeschedule[2][1])
 		{
 			timeschedule[1][0]++;
 		}
 		
-		
 		if (timeschedule[1][0] >= 24)
 		{
-			timeschedule[1][0] = 0;
+			timeschedule[1][0] = 23;
 		}
 		
 		flagsceduleupdate = 1;
 	}
 
+	// Расписание
+	// день минуты++
 	if (flagsetting == 6)
 	{
-		
 		if (timeschedule[1][0] * 60 + timeschedule[1][1] + 2 <= timeschedule[2][0] * 60 + timeschedule[2][1])
 		{
 			timeschedule[1][1]++;
 		}
 		
-		
 		if (timeschedule[1][1] >= 60)
 		{
-			timeschedule[1][1] = 0;
+			timeschedule[1][1] = 59;
 		}
 		
 		flagsceduleupdate = 1;
 	}
 
+	// Расписание
+	// закат часы++
 	if (flagsetting == 7)
 	{
-		timeschedule[2][0]++;
+		if ((timeschedule[2][0] + 1) * 60 + timeschedule[2][1] <= timeschedule[3][0] * 60 + timeschedule[3][1])
+		{
+			timeschedule[2][0]++;
+		}
 		
 		if (timeschedule[2][0] >= 24)
 		{
-			timeschedule[2][0] = 0;
+			timeschedule[2][0] = 23;
 		}
 		
 		flagsceduleupdate = 1;
 	}
 
+	// Расписание
+	// Закат минуты++
 	if (flagsetting == 8)
 	{
-		timeschedule[2][1]++;
+		if (timeschedule[2][0] * 60 + timeschedule[2][1] + 2 <= timeschedule[3][0] * 60 + timeschedule[3][1])
+		{
+			timeschedule[2][1]++;
+		}
 		
 		if (timeschedule[2][1] >= 60)
 		{
-			timeschedule[2][1] = 0;
+			timeschedule[2][1] = 59;
 		}
 		
 		flagsceduleupdate = 1;
 	}
 
+	// Расписание
+	// Ночь часы++
 	if (flagsetting == 9)
 	{
+		// Без ограничений
 		timeschedule[3][0]++;
 		
 		if (timeschedule[3][0] >= 24)
 		{
-			timeschedule[3][0] = 0;
+			timeschedule[3][0] = 23;
 		}
 		
 		flagsceduleupdate = 1;
 	}
-
+	
+	// Расписание
+	// Ночь минуты++
 	if (flagsetting == 10)
 	{
+		// Без ограничений
 		timeschedule[3][1]++;
 		
 		if (timeschedule[3][1] >= 60)
 		{
-			timeschedule[3][1] = 0;
+			timeschedule[3][1] = 59;
 		}
-		
 		flagsceduleupdate = 1;
 	}
 
@@ -644,7 +683,7 @@ ISR(INT0_vect)
 	}
 	
 	PORTA = 1;
-	_delay_ms(30);
+	_delay_ms(40);
 	PORTA = 0;
 	
 	sei();
@@ -654,12 +693,15 @@ ISR(INT1_vect)
 {
 	cli();
 	
-	_delay_ms(20);
-	if (PIND & (1 << PIND3))		// Если высокий уровень
+	// Защита от дребеза
+	// Если после паузы высокий уровень то return
+	_delay_ms(30);
+	if (PIND & (1 << PIND3))
 	{
 		return;
 	}
 	
+	// Обработка кнопки
 	if (flagsetting == 0)
 	{
 		timesetting[0]--;
@@ -696,8 +738,11 @@ ISR(INT1_vect)
 		flagclockupdate = 1;
 	}
 	
+	// Расписание 
+	// Рассвет часы--
 	if (flagsetting == 3)
 	{
+		// Уменьшение без ограничений
 		timeschedule[0][0]--;
 		
 		if (timeschedule[0][0] >= 24)
@@ -708,11 +753,14 @@ ISR(INT1_vect)
 		flagsceduleupdate = 1;
 	}
 	
+	// Расписание 
+	// Рассвет минуты--
 	if (flagsetting == 4)
 	{
+		// Уменьшение без ограничений
 		timeschedule[0][1]--;
 		
-		if (timeschedule[0][1] >= 24)
+		if (timeschedule[0][1] >= 60)
 		{
 			timeschedule[0][1] = 0;
 		}
@@ -720,9 +768,14 @@ ISR(INT1_vect)
 		flagsceduleupdate = 1;
 	}
 	
+	// Расписание
+	// День часы--
 	if (flagsetting == 5)
 	{
-		timeschedule[1][0]--;
+		if ((timeschedule[1][0] - 1) * 60 + timeschedule[1][1] > timeschedule[0][0] * 60 + timeschedule[0][1])
+		{
+			timeschedule[1][0]--;
+		}
 		
 		if (timeschedule[1][0] >= 24)
 		{
@@ -732,11 +785,16 @@ ISR(INT1_vect)
 		flagsceduleupdate = 1;
 	}
 	
+	// Расписание
+	// День минуты--
 	if (flagsetting == 6)
 	{
-		timeschedule[1][1]--;
+		if ((timeschedule[1][0]) * 60 + timeschedule[1][1] - 1 > timeschedule[0][0] * 60 + timeschedule[0][1])
+		{
+			timeschedule[1][1]--;
+		}
 		
-		if (timeschedule[1][1] >= 24)
+		if (timeschedule[1][1] >= 60)
 		{
 			timeschedule[1][1] = 0;
 		}
@@ -744,9 +802,14 @@ ISR(INT1_vect)
 		flagsceduleupdate = 1;
 	}
 	
+	// Расписание
+	// Закат часы--
 	if (flagsetting == 7)
 	{
-		timeschedule[2][0]--;
+		if ((timeschedule[2][0] - 1) * 60 + timeschedule[2][1] > timeschedule[1][0] * 60 + timeschedule[1][1])
+		{
+			timeschedule[2][0]--;
+		}
 		
 		if (timeschedule[2][0] >= 24)
 		{
@@ -756,11 +819,16 @@ ISR(INT1_vect)
 		flagsceduleupdate = 1;
 	}
 	
+	// Расписание
+	// Закат минуты--
 	if (flagsetting == 8)
 	{
-		timeschedule[2][1]--;
+		if ((timeschedule[2][0]) * 60 + timeschedule[2][1] - 1 > timeschedule[1][0] * 60 + timeschedule[1][1])
+		{
+			timeschedule[2][1]--;
+		}
 		
-		if (timeschedule[2][1] >= 24)
+		if (timeschedule[2][1] >= 60)
 		{
 			timeschedule[2][1] = 0;
 		}
@@ -768,9 +836,14 @@ ISR(INT1_vect)
 		flagsceduleupdate = 1;
 	}
 	
+	// Расписание
+	// Ночь часы--
 	if (flagsetting == 9)
 	{
-		timeschedule[3][0]--;
+		if ((timeschedule[3][0] - 1) * 60 + timeschedule[3][1] > timeschedule[2][0] * 60 + timeschedule[2][1])
+		{
+			timeschedule[3][0]--;
+		}
 		
 		if (timeschedule[3][0] >= 24)
 		{
@@ -780,15 +853,20 @@ ISR(INT1_vect)
 		flagsceduleupdate = 1;
 	}
 	
+	// Расписание
+	// Ночь минуты--
 	if (flagsetting == 10)
 	{
-		timeschedule[3][1]--;
+		if ((timeschedule[3][0]) * 60 + timeschedule[3][1] - 1 > timeschedule[2][0] * 60 + timeschedule[2][1])
+		{
+			timeschedule[3][1]--;
+		}
 		
-		if (timeschedule[3][1] >= 24)
+		if (timeschedule[3][1] >= 60)
 		{
 			timeschedule[3][1] = 0;
 		}
-		
+			
 		flagsceduleupdate = 1;
 	}
 	
@@ -798,7 +876,7 @@ ISR(INT1_vect)
 	}
 	
 	PORTA = 1;
-	_delay_ms(30);
+	_delay_ms(40);
 	PORTA = 0;
 	
 	sei();
@@ -808,12 +886,13 @@ ISR(INT2_vect)
 {
 	cli();
 	
-	_delay_ms(20);
-	if (PINB & (1 << PINB2))		// Если высокий уровень
+	// Защита от дребезга
+	// Если после паузы высокий уровень то return
+	_delay_ms(70);
+	if (PINB & (1 << PINB2))
 	{
 		return;
-	}
-	
+	}	
 	
 	// Инкремент флага настроек
 	flagsetting++;
@@ -831,13 +910,15 @@ ISR(INT2_vect)
 	
 	if (flagsetting >= 3)
 	{
-		flagsceduleupdate = 2;
+		flagsceduleupdate = 1;
 	}
 	
+	// По завершении настрйки расписание выдача разрешения на обновление блока "время суток / настройки"
 	if (flagsetting == 0)
 	{
 		flagwordupdate = 1;
 	}
+	
 	
 	
 	// Особые действия по началу и завершению настроек часов
@@ -859,8 +940,9 @@ ISR(INT2_vect)
 	}
 
 	
+	
 	PORTA = 1;
-	_delay_ms(30);
+	_delay_ms(40);
 	PORTA = 0;
 	
 	sei();
@@ -892,8 +974,6 @@ void setup(void)
 	TCCR0 |= (0 << FOC0)|(1  << WGM01)|(1 << WGM00)|(1 << COM01)|(0 << COM00)|(0 << CS02)|(0 << CS01)|(1 << CS00);	// WGM - fast PWM, COM - clear on compare, CS - прескелер, FOC - ?
 	
 	DDRB |= 0b00001000;		// Вывод ШИМ - PB3(OC0)
-	
-	ST7789::init();
 }
 
 
