@@ -9,9 +9,6 @@
 void SetupTimers(void);
 void SetupInterrupts(void);
 
-char xpos = 0;
-char ypos = 0;
-
 int main(void)
 {
 	_delay_ms(200);
@@ -19,13 +16,13 @@ int main(void)
 	ST7789_InitSPI();
 	ST7789_InitST7789();
 	
-	ST7789_FillScreen(BLACK);
-	ST7789_PrintString((char*)"BEBRA!", &xpos, &ypos, YELLOW, WHITE, 3);
-	ST7789_PrintString((char*)"AmoGus", &xpos, &ypos, GREEN, RED, 3);
+	ST7789_FillScreen(WHITE);
 	
-
+	ST7789_DrawRectangle(100, 100, 50, 50, RED);
+	//ST7789_DrawRectangle(100, 100, -50, -50, GREEN);
+		
 	while(1)
-	{	
+	{
 	}
 }
 

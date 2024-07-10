@@ -31,8 +31,19 @@
 #define PORT_RES	PORTC						// Порт на котором будет RES
 
 // Размеры экрана
-#define WIDTH             240
-#define HEIGHT            320
+#define WIDTH			240
+#define HEIGHT			320
+
+// Дефолтные настройки шрифта
+#define RED_FONT			31
+#define GREEN_FONT			61
+#define BLUE_FONT			31
+
+#define RED_BACKGROUND		0
+#define GREEN_BACKGROUND	0
+#define BLUE_BACKGROUND		0
+
+#define FONT_SIZE			3
 
 
 
@@ -138,17 +149,9 @@
 
 
 //==============================================================================
-//							Переменные курсора экрана
-//==============================================================================
-
-/*
-char x_pos = 0;
-char y_pos = 0;
-*/
-
-//==============================================================================
 //								Структура цветов
 //==============================================================================
+
 typedef struct colour 
 {
 	char red;
@@ -169,7 +172,6 @@ const colour BLACK	 = {0,  0,  0 };
 
 const colour colours_set[] = {RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN, WHITE, BLACK};	
 
-
 	
 
 //==============================================================================
@@ -178,10 +180,26 @@ const colour colours_set[] = {RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN, WHITE, BL
 		
 void ST7789_InitSPI(void);
 void ST7789_InitST7789(void);
+
+//==============================================================================
+//								Сеттеры и геттеры
+//==============================================================================	
+
+void ST7789_SetXpos(char x);	
+void ST7789_SetYpos(char y);
+void ST7789_SetXYpos(char x, char y);
+
+void ST7789_GetXpos(char* x);
+void ST7789_GetYpos(char* y);
+void ST7789_GetXYpos(char* x, char* y);
 		
 //==============================================================================
 //				Основные функции для вывода на экран слов и геометрии
 //==============================================================================
+
+// Нарисовать квадрат
+void ST7789_DrawRectangle(char x, char y, char hight, char lentgh, char red, char green, char blue);
+void ST7789_DrawRectangle(char x, char y, char hight, char lentgh, colour paint);
 
 // Нарисовать квадрат
 void ST7789_DrawSquare(char x, char y, char red, char green, char blue, char size);
@@ -191,25 +209,47 @@ void ST7789_DrawSquare(char x, char y, colour paint, char size);
 // Залить экран цветом		
 void ST7789_FillScreen(char red, char green, char blue);
 void ST7789_FillScreen(colour paint);
-
 	
 // Написать символ ASCII
-// на цветном фоне цветной символ
-void ST7789_PrintChar(char letter, char* xpos, char* ypos, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size);	// по RGB
-void ST7789_PrintChar(char letter, char* xpos, char* ypos, colour colour_font, colour colour_background, char size);		// по цвету (перегрузка)
-// на черном фоне цветной символ
-void ST7789_PrintChar(char letter, char* xpos, char* ypos, char red_font, char green_font, char blue_font, char size);		// по RGB
-void ST7789_PrintChar(char letter, char* xpos, char* ypos, colour colour_font, char size);									// по цвету (перегрузка)
+	// нестандартные шрифты
+	// на цветном фоне цветной символ
+void ST7789_PrintChar(char letter, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size);						// по RGB	и без координат
+void ST7789_PrintChar(char letter, colour colour_font, colour colour_background, char size);																							// по цвету	и без координат
+void ST7789_PrintChar(char letter, char xcur, char ycur, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size);	// по RGB	и с координатами
+void ST7789_PrintChar(char letter, char xcur, char ycur, colour colour_font, colour colour_background, char size);																		// по цвету и с координатами
+	// нестандартные шрифты
+	// на дефолтном фоне цветной символ
+void ST7789_PrintChar(char letter, char red_font, char green_font, char blue_font, char size);									// по RGB	и без координат
+void ST7789_PrintChar(char letter, colour colour_font, char size);																// по цвету	и без координат
+void ST7789_PrintChar(char letter, char xcur, char ycur, char red_font, char green_font, char blue_font, char size);			// по RGB	и с координатами
+void ST7789_PrintChar(char letter, char xcur, char ycur, colour colour_font, char size);										// по цвету	и с координатами
+	// стандартный шрифт
+	// на дефолтном фоне дефолтный символ
+void ST7789_PrintChar(char letter, char size);									// без координат
+void ST7789_PrintChar(char letter);												// без координат
+void ST7789_PrintChar(char letter, char xcur, char ycur, char size);			// с координатами
+void ST7789_PrintChar(char letter, char xcur, char ycur);						// с координатами
 
 
 // Написать строку ASCII
-// на цветном фоне цветная строка
-void ST7789_PrintString(char* string, char* xpos, char* ypos, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size);	
-void ST7789_PrintString(char* string, char* xpos, char* ypos, colour colour_font, colour colour_background, char size);	// по цвету (перегрузка)
-// на черном фоне цветная строка
-void ST7789_PrintString(char* string, char* xpos, char* ypos, char red_font, char green_font, char blue_font, char size);	// по RGB
-void ST7789_PrintString(char* string, char* xpos, char* ypos, colour colour_font, char size);								// по цвету (перегрузка)
-
+	// нестандартные шрифты
+	// на цветном фоне цветная строка
+void ST7789_PrintString(char* string, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size);								// по RGB	и без координат
+void ST7789_PrintString(char* string, colour colour_font, colour colour_background, char size);																									// по цвету	и без координат
+void ST7789_PrintString(char* string, char xcur, char ycur, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size);		// по RGB	и с координатами
+void ST7789_PrintString(char* string, char xcur, char ycur, colour colour_font, colour colour_background, char size);																			// по цвету	и с координатами
+	// нестандартные шрифты
+	// на дефолтном фоне цветная строка
+void ST7789_PrintString(char* string, char red_font, char green_font, char blue_font, char size);							// по RGB	и без координат
+void ST7789_PrintString(char* string, colour colour_font, char size);														// по цвету и без координат
+void ST7789_PrintString(char* string, char xcur, char ycur, char red_font, char green_font, char blue_font, char size);		// по RGB	и с координатами
+void ST7789_PrintString(char* string, char xcur, char ycur, colour colour_font, char size);									// по цвету и с координатами
+	// стандартный шрифт
+	// на дефолтном фоне дефолтная строка
+void ST7789_PrintString(char* string, char size);								// без координат
+void ST7789_PrintString(char* string);											// без координат
+void ST7789_PrintString(char* string, char xcur, char ycur, char size);			// с координатами
+void ST7789_PrintString(char* string, char xcur, char ycur);					// с координатами
 	
 //==============================================================================
 //	INLINE				Функции передачи данных по SPI
@@ -218,6 +258,7 @@ void ST7789_PrintString(char* string, char* xpos, char* ypos, colour colour_font
 inline void ST7789_Send(char data);	
 inline void ST7789_SendData(char data);
 inline void ST7789_SendCommand(char data);
+	
 	
 //==============================================================================
 //							   Шрифт monocraft

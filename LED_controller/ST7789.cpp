@@ -10,6 +10,15 @@
 #include "ST7789.h"
 
 
+
+//==============================================================================
+//							Переменные курсора экрана
+//==============================================================================
+
+char xpos = 0;
+char ypos = 0;
+
+
 //==============================================================================
 //				  Функции инициализации SPI и инициализации экрана
 //==============================================================================
@@ -83,9 +92,87 @@ void ST7789_InitST7789(void)
 
 
 //==============================================================================
+//								Сеттеры и геттеры
+//==============================================================================
+
+void ST7789_SetXpos(char x)
+{
+	xpos = x;
+}
+
+void ST7789_SetYpos(char y)
+{
+	ypos = y;
+}
+
+void ST7789_SetXYpos(char x, char y)
+{
+	xpos = x;
+	ypos = y;
+}
+
+void ST7789_GetXpos(char* x)
+{
+	*x = xpos;
+}
+
+void ST7789_GetYpos(char* y)
+{
+	*y = ypos;
+}
+
+void ST7789_GetXYpos(char* x, char* y)
+{
+	*x = xpos;
+	*y = ypos;
+}
+
+
+//==============================================================================
 //				Основные функции для вывода на экран слов и геометрии
 //==============================================================================
-	
+
+// Нарисовать квадрат
+void ST7789_DrawRectangle(char x, char y, char height, char lentgh, char red, char green, char blue)
+{
+	if (x > 240 || y > 240 || x < 0 || y < 0)		// Проверка чтобы ввод не выходил за границы экрана
+	{
+		return;
+	}
+
+	COMMAND
+	Send(0x2A);								// Column address set
+	DATA
+	Send(x >> 8);							// XS highpart	(Старшая часть начального положения Колонки)
+	Send(x);								// XS lowpart	(Младшая часть начального положения Колонки)
+	Send((x + lentgh - 1) >> 8);				// XE highpart	(Старшая часть конечного положения Колонки)
+	Send(x + lentgh - 1);						// XE highpart	(Младшая часть конечного положения Колонки)
+
+	COMMAND
+	Send(0x2B);								// Row address set
+	DATA
+	Send(y >> 8);							// YS highpart	(Старшая часть начального положения Ряда)
+	Send(y);								// YS lowpart	(Младшая часть начального положения Ряда)
+	Send((y + height - 1) >> 8);				// YE highpart	(Старшая часть конечного положения Ряда)
+	Send(y + height - 1);						// YE highpart	(Младшая часть конечного положения Ряда)
+		
+	COMMAND
+	Send(0x2C);				// Memory write
+		
+	DATA
+	for(int i = 0; i < (int)(height*lentgh); i++)		// Отрисовка
+	{
+		Send((red << 3) | green >> 3);
+		Send((green << 5) | blue);
+	}
+}
+
+void ST7789_DrawRectangle(char x, char y, char height, char lentgh, colour paint)
+{
+	ST7789_DrawRectangle(x, y, height, lentgh, paint.red, paint.green, paint.blue);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Нарисовать квадрат
 void ST7789_DrawSquare(char x, char y, char red, char green, char blue, char size)
 {
@@ -126,6 +213,7 @@ void ST7789_DrawSquare(char x, char y, colour paint, char size)
 	ST7789_DrawSquare(x, y, paint.red, paint.green, paint.blue, size);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Залить экран цветом
 void ST7789_FillScreen(char red, char green, char blue)
 {
@@ -138,11 +226,13 @@ void ST7789_FillScreen(colour paint)
 }
 
 
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Написать символ ASCII
-// на цветном фоне цветной символ
-void ST7789_PrintChar(char letter, char* xpos, char* ypos, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size)
-{
+// нестандартные шрифты
+	// на цветном фоне цветной символ
+	// по RGB	и без координат
+void ST7789_PrintChar(char letter, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size)
+{	
 	for(char i = 0; i < 6; i++)
 	{
 		char mask;
@@ -151,80 +241,232 @@ void ST7789_PrintChar(char letter, char* xpos, char* ypos, char red_font, char g
 			mask = 1;
 			if(monocraft[letter - 32][i] & (mask << (7 - y)))
 			{
-				ST7789_DrawSquare(*xpos, *ypos + (y * size), red_font, green_font, blue_font, size);
+				ST7789_DrawSquare(xpos, ypos + (y * size), red_font, green_font, blue_font, size);
 			}
 			else
 			{
-				ST7789_DrawSquare(*xpos, *ypos + (y * size), red_background, green_background, blue_background, size);
+				ST7789_DrawSquare(xpos, ypos + (y * size), red_background, green_background, blue_background, size);
 			}
 		}
 		
-		*xpos += size;
+		xpos += size;
 		
-		if (*xpos >= 240)
+		if (xpos >= 240)
 		{
-			*xpos = 0;
-			*ypos += 8 * size;
+			xpos = 0;
+			ypos += 8 * size;
 		}
 		
-		if (*ypos >= 240)
+		if (ypos >= 240)
 		{
-			*xpos = 0;
-			*ypos = 0;
+			xpos = 0;
+			ypos = 0;
 		}
 	}
 }
 
-// на цветном фоне цветной символ (перегрузка)
-void ST7789_PrintChar(char letter, char* xpos, char* ypos, colour colour_font, colour colour_background, char size)
+	// на цветном фоне цветной символ
+	// по цвету	и без координат
+void ST7789_PrintChar(char letter, colour colour_font, colour colour_background, char size)
 {
-	ST7789_PrintChar(letter, xpos, ypos, colour_font.red, colour_font.green, colour_font.blue, colour_background.red, colour_background.green, colour_background.blue, size);
+	ST7789_PrintChar(letter, colour_font.red, colour_font.green, colour_font.blue, colour_background.red, colour_background.green, colour_background.blue, size);
 }
-	
-// на черном фоне цветной символ
-void ST7789_PrintChar(char letter, char* xpos, char* ypos, char red_font, char green_font, char blue_font, char size)
+	// на цветном фоне цветной символ
+	// по RGB	и с координатами
+void ST7789_PrintChar(char letter, char xcur, char ycur, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size)
 {
-	ST7789_PrintChar(letter, xpos, ypos, red_font, green_font, blue_font, 0, 0, 0, size);
+	xpos = xcur;
+	ypos = ycur;
+	
+	ST7789_PrintChar(letter, red_font, green_font, blue_font, red_background, green_background, blue_background, size);
+}
+	// на цветном фоне цветной символ
+	// по цвету и с координатами
+void ST7789_PrintChar(char letter, char xcur, char ycur, colour colour_font, colour colour_background, char size)
+{
+	xpos = xcur;
+	ypos = ycur;
+	
+	ST7789_PrintChar(letter, colour_font.red, colour_font.green, colour_font.blue, colour_background.red, colour_background.green, colour_background.blue, size);
 }
 
-// на черном фоне цветной символ (перегрузка)
-void ST7789_PrintChar(char letter, char* xpos, char* ypos, colour paint, char size)
+	
+	// на дефолтном фоне цветной символ
+	// по RGB	и без координат
+void ST7789_PrintChar(char letter, char red_font, char green_font, char blue_font, char size)
 {
-	ST7789_PrintChar(letter, xpos, ypos, paint.red, paint.green, paint.blue, size);
+	ST7789_PrintChar(letter, red_font, green_font, blue_font, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);
 }
 
+	// на дефолтном фоне цветной символ
+	// по цвету	и без координат
+void ST7789_PrintChar(char letter, colour paint, char size)
+{
+	ST7789_PrintChar(letter, paint.red, paint.green, paint.blue, size);
+}
+	// на дефолтном фоне цветной символ
+	// по RGB	и с координатами
+void ST7789_PrintChar(char letter, char xcur, char ycur, char red_font, char green_font, char blue_font, char size)
+{
+	xpos = xcur;
+	ypos = ycur;
+	
+	ST7789_PrintChar(letter, red_font, green_font, blue_font, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);
+}
+	// на дефолтном фоне цветной символ
+	// по цвету	и с координатами
+void ST7789_PrintChar(char letter, char xcur, char ycur, colour paint, char size)
+{
+	xpos = xcur;
+	ypos = ycur;
+	
+	ST7789_PrintChar(letter, paint.red, paint.green, paint.blue, size);
+}
+
+
+	// стандартный шрифт
+	// без координат
+void ST7789_PrintChar(char letter, char size)
+{
+	ST7789_PrintChar(letter, RED_FONT, GREEN_FONT, BLUE_FONT, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);
+}
+
+	// стандартный шрифт
+	// без координат
+void ST7789_PrintChar(char letter)
+{
+	ST7789_PrintChar(letter, RED_FONT, GREEN_FONT, BLUE_FONT, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, FONT_SIZE);
+}
+
+	// стандартный шрифт
+	// с координатами
+void ST7789_PrintChar(char letter, char xcur, char ycur, char size)
+{
+	xpos = xcur;
+	ypos = ycur;
+		
+	ST7789_PrintChar(letter, RED_FONT, GREEN_FONT, BLUE_FONT, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);
+}
+
+	// стандартный шрифт
+	// с координатами
+void ST7789_PrintChar(char letter, char xcur, char ycur)
+{
+	xpos = xcur;
+	ypos = ycur;
+	
+	ST7789_PrintChar(letter, RED_FONT, GREEN_FONT, BLUE_FONT, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, FONT_SIZE);
+}
 	
 	
+	
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
 // Написать строку ASCII
-// на цветном фоне цветная строка
-void ST7789_PrintString(char* string, char* xpos, char* ypos, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size)
+	// нестандартные шрифты
+		// на цветном фоне цветная строка
+		// по RGB	и без координат
+void ST7789_PrintString(char* string, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size)
 {
 	char counter = 0;
 	
 	while (string[counter] != '\0')
 	{
-		ST7789_PrintChar(string[counter], xpos, ypos, red_font, green_font, blue_font, red_background, green_background, blue_background, size);
+		ST7789_PrintChar(string[counter], red_font, green_font, blue_font, red_background, green_background, blue_background, size);
 		counter++;
 	}
 }
-
-// на цветном фоне цветная строка (перегрузка)	
-void ST7789_PrintString(char* string, char* xpos, char* ypos, colour colour_font, colour colour_background, char size)
+		// на цветном фоне цветная строка
+		// по цвету	и без координат	
+void ST7789_PrintString(char* string, colour colour_font, colour colour_background, char size)
 {
-	ST7789_PrintString(string, xpos, ypos, colour_font.red, colour_font.green, colour_font.blue, colour_background.red, colour_background.green, colour_background.blue, size);
+	ST7789_PrintString(string, colour_font.red, colour_font.green, colour_font.blue, colour_background.red, colour_background.green, colour_background.blue, size);
 }
+		// на цветном фоне цветная строка
+		// по RGB	и с координатами
+void ST7789_PrintString(char* string, char xcur, char ycur, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size)
+{
+	xpos = xcur;
+	ypos = ycur;
+		
+	ST7789_PrintString(string, red_font, green_font, blue_font, red_background, green_background, blue_background, size);
+}
+		// на цветном фоне цветная строка
+		// по цвету	и с координатами
+void ST7789_PrintString(char* string, char xcur, char ycur, colour colour_font, colour colour_background, char size)
+{
+	xpos = xcur;
+	ypos = ycur;
+		
+	ST7789_PrintString(string, colour_font.red, colour_font.green, colour_font.blue, colour_background.red, colour_background.green, colour_background.blue, size);
+}
+
+
+		// на дефолтном фоне цветная строка
+		// по RGB	и без координат
+void ST7789_PrintString(char* string, char red_font, char green_font, char blue_font, char size)
+{
+	ST7789_PrintString(string, red_font, green_font, blue_font, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);
+}
+
+		// на дефолтном фоне цветная строка
+		// по цвету и без координат
+void ST7789_PrintString(char* string, colour colour_font, char size)
+{
+	ST7789_PrintString(string, colour_font.red, colour_font.green, colour_font.blue, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);
+}
+
+		// на дефолтном фоне цветная строка
+		// по RGB	и с координатами
+void ST7789_PrintString(char* string, char xcur, char ycur, char red_font, char green_font, char blue_font, char size)
+{
+	xpos = xcur;
+	ypos = ycur;
+		
+	ST7789_PrintString(string, red_font, green_font, blue_font, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);
+}
+
+		// на дефолтном фоне цветная строка
+		// по цвету и с координатами
+void ST7789_PrintString(char* string, char xcur, char ycur, colour colour_font, char size)
+{
+	xpos = xcur;
+	ypos = ycur;
+		
+	ST7789_PrintString(string, colour_font.red, colour_font.green, colour_font.blue, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);
+}
+
+		// стандартный шрифт
+		// без координат
+void ST7789_PrintString(char* string, char size)
+{
+	ST7789_PrintString(string, RED_FONT, GREEN_FONT, BLUE_FONT, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);
+}
+		// стандартный шрифт
+		// без координат
+void ST7789_PrintString(char* string)
+{
+	ST7789_PrintString(string, RED_FONT, GREEN_FONT, BLUE_FONT, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, FONT_SIZE);
+}
+		// стандартный шрифт
+		// с координатами
+void ST7789_PrintString(char* string, char xcur, char ycur, char size)
+{
+	xpos = xcur;
+	ypos = ycur;
 	
-// на черном фоне цветная строка
-void ST7789_PrintString(char* string, char* xpos, char* ypos, char red_font, char green_font, char blue_font, char size)
+	ST7789_PrintString(string, RED_FONT, GREEN_FONT, BLUE_FONT, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, size);	
+}
+		// стандартный шрифт
+		// с координатами
+void ST7789_PrintString(char* string, char xcur, char ycur)
 {
-	ST7789_PrintString(string, xpos, ypos, red_font, green_font, blue_font, 0, 0, 0, size);
+	xpos = xcur;
+	ypos = ycur;
+	
+	ST7789_PrintString(string, RED_FONT, GREEN_FONT, BLUE_FONT, RED_BACKGROUND, GREEN_BACKGROUND, BLUE_BACKGROUND, FONT_SIZE);
 }
 
-// на черном фоне цветная строка (перегрузка)
-void ST7789_PrintString(char* string, char* xpos, char* ypos, colour colour_font, char size)
-{
-	ST7789_PrintString(string, xpos, ypos, colour_font.red, colour_font.green, colour_font.blue, 0, 0, 0, size);
-}
+	
 	
 	
 
