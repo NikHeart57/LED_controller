@@ -29,8 +29,8 @@ namespace DS1307
 	// Адрес часов слейв на запись W	0b11010000
 	// Адрес часов слейв на чтение R	0b11010001
 		
-	void writeTime(char time[]);
-	void readTime(char time[]);
+	void WriteTime(char time[]);
+	void ReadTime(char time[]);
 		
 				
 	//==============================================================================

@@ -17,7 +17,7 @@ namespace DS1307
 	// јдрес часов слейв на запись W	0b11010000
 	// јдрес часов слейв на чтение R	0b11010001
 	
-	void writeTime(char time[])
+	void WriteTime(char time[])
 	{
 		// јдрес часов слейв запись W	0b11010000
 		// јдрес часов слейв чтение	R	0b11010001
@@ -39,7 +39,7 @@ namespace DS1307
 		I2CMTstop();							// —топ от мастера									// 11111 = 0xf8 - No relevant state information	available; TWINT = У0Ф
 	}
 
-	void readTime(char time[])
+	void ReadTime(char time[])
 	{
 		// јдрес часов слейв запись		0b11010000
 		// јдрес часов слейв чтение		0b11010001

@@ -153,12 +153,6 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DS1307.cpp">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="DS1307.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="main.cpp">
       <SubType>compile</SubType>
     </Compile>
