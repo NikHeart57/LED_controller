@@ -133,7 +133,7 @@ void ST7789_GetXYpos(char* x, char* y)
 //==============================================================================
 
 // Нарисовать квадрат
-void ST7789_DrawRectangle(char x, char y, char height, char lentgh, char red, char green, char blue)
+void ST7789_DrawRectangle(char x, char y, char widtgh, char height, char red, char green, char blue)
 {
 	if (x > 240 || y > 240 || x < 0 || y < 0)		// Проверка чтобы ввод не выходил за границы экрана
 	{
@@ -145,84 +145,55 @@ void ST7789_DrawRectangle(char x, char y, char height, char lentgh, char red, ch
 	DATA
 	Send(x >> 8);							// XS highpart	(Старшая часть начального положения Колонки)
 	Send(x);								// XS lowpart	(Младшая часть начального положения Колонки)
-	Send((x + lentgh - 1) >> 8);				// XE highpart	(Старшая часть конечного положения Колонки)
-	Send(x + lentgh - 1);						// XE highpart	(Младшая часть конечного положения Колонки)
+	Send((x + widtgh - 1) >> 8);			// XE highpart	(Старшая часть конечного положения Колонки)
+	Send(x + widtgh - 1);					// XE highpart	(Младшая часть конечного положения Колонки)
 
 	COMMAND
 	Send(0x2B);								// Row address set
 	DATA
 	Send(y >> 8);							// YS highpart	(Старшая часть начального положения Ряда)
 	Send(y);								// YS lowpart	(Младшая часть начального положения Ряда)
-	Send((y + height - 1) >> 8);				// YE highpart	(Старшая часть конечного положения Ряда)
-	Send(y + height - 1);						// YE highpart	(Младшая часть конечного положения Ряда)
+	Send((y + height - 1) >> 8);			// YE highpart	(Старшая часть конечного положения Ряда)
+	Send(y + height - 1);					// YE highpart	(Младшая часть конечного положения Ряда)
 		
 	COMMAND
-	Send(0x2C);				// Memory write
+	Send(0x2C);								// Memory write
 		
 	DATA
-	for(int i = 0; i < (int)(height*lentgh); i++)		// Отрисовка
+	for(int i = 0; i < (int)((int)height*(int)widtgh); i++)		// Отрисовка
 	{
 		Send((red << 3) | green >> 3);
 		Send((green << 5) | blue);
 	}
 }
 
-void ST7789_DrawRectangle(char x, char y, char height, char lentgh, colour paint)
+void ST7789_DrawRectangle(char x, char y, char widtgh, char height, colour paint)
 {
-	ST7789_DrawRectangle(x, y, height, lentgh, paint.red, paint.green, paint.blue);
+	ST7789_DrawRectangle(x, y, widtgh, height, paint.red, paint.green, paint.blue);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Нарисовать квадрат
-void ST7789_DrawSquare(char x, char y, char red, char green, char blue, char size)
+void ST7789_DrawSquare(char x, char y, char size, char red, char green, char blue)
 {
-	if (x > 240 || y > 240 || x < 0 || y < 0)		// Проверка чтобы ввод не выходил за границы экрана
-	{
-		return;
-	}
-
-	COMMAND
-	Send(0x2A);								// Column address set
-	DATA
-	Send(x >> 8);							// XS highpart	(Старшая часть начального положения Колонки)
-	Send(x);								// XS lowpart	(Младшая часть начального положения Колонки)
-	Send((x + size - 1) >> 8);				// XE highpart	(Старшая часть конечного положения Колонки)
-	Send(x + size - 1);						// XE highpart	(Младшая часть конечного положения Колонки)
-
-	COMMAND
-	Send(0x2B);								// Row address set
-	DATA
-	Send(y >> 8);							// YS highpart	(Старшая часть начального положения Ряда)
-	Send(y);								// YS lowpart	(Младшая часть начального положения Ряда)
-	Send((y + size - 1) >> 8);				// YE highpart	(Старшая часть конечного положения Ряда)
-	Send(y + size - 1);						// YE highpart	(Младшая часть конечного положения Ряда)
-		
-	COMMAND
-	Send(0x2C);				// Memory write
-		
-	DATA
-	for(int i = 0; i < (int)(size*size); i++)		// Отрисовка
-	{
-		Send((red << 3) | green >> 3);
-		Send((green << 5) | blue);
-	}
+	ST7789_DrawRectangle(x, y, size, size, red, green, blue);
 }
 	
-void ST7789_DrawSquare(char x, char y, colour paint, char size)
+void ST7789_DrawSquare(char x, char y, char size, colour paint)
 {
-	ST7789_DrawSquare(x, y, paint.red, paint.green, paint.blue, size);
+	ST7789_DrawRectangle(x, y, size, size, paint.red, paint.green, paint.blue);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Залить экран цветом
 void ST7789_FillScreen(char red, char green, char blue)
 {
-	ST7789_DrawSquare(0, 0, red, green, blue, 240);
+	ST7789_DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, red, green, blue);
 }
 	
 void ST7789_FillScreen(colour paint)
 {
-	ST7789_DrawSquare(0, 0, paint.red, paint.green, paint.blue, 240);
+	ST7789_DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, paint.red, paint.green, paint.blue);
 }
 
 
@@ -233,31 +204,37 @@ void ST7789_FillScreen(colour paint)
 	// по RGB	и без координат
 void ST7789_PrintChar(char letter, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size)
 {	
-	for(char i = 0; i < 6; i++)
+	if (xpos + 6 * size > SCREEN_WIDTH)												// Проверка на то, чтобы символ не выходил за пределы экрана на этой строке. Если символ не умещается на этой строчке про происходит его перенос
 	{
+		xpos = 0;
+		ypos += 8 * size;
+	}
+	
+	for(uint8_t i = 0; i < 6; i++)														// Собственно отрисовка символа. Этот цикл перебирает байты символа ("по колоночкам")
+	{		
 		char mask;
-		for (char y = 0; y < 8; y++)
+		for (uint8_t y = 0; y < 8; y++)												// Этот цикл переберает биты символа
 		{
 			mask = 1;
 			if(monocraft[letter - 32][i] & (mask << (7 - y)))
 			{
-				ST7789_DrawSquare(xpos, ypos + (y * size), red_font, green_font, blue_font, size);
+				ST7789_DrawRectangle(xpos, ypos + (y * size), size, size, red_font, green_font, blue_font);
 			}
 			else
 			{
-				ST7789_DrawSquare(xpos, ypos + (y * size), red_background, green_background, blue_background, size);
+				ST7789_DrawRectangle(xpos, ypos + (y * size), size, size, red_background, green_background, blue_background);
 			}
 		}
 		
 		xpos += size;
 		
-		if (xpos >= 240)
+		if (xpos >= SCREEN_WIDTH)
 		{
 			xpos = 0;
 			ypos += 8 * size;
 		}
 		
-		if (ypos >= 240)
+		if (ypos >= SCREEN_HEIGHT)
 		{
 			xpos = 0;
 			ypos = 0;
@@ -367,7 +344,7 @@ void ST7789_PrintChar(char letter, char xcur, char ycur)
 		// по RGB	и без координат
 void ST7789_PrintString(char* string, char red_font, char green_font, char blue_font, char red_background, char green_background, char blue_background, char size)
 {
-	char counter = 0;
+	int counter = 0;
 	
 	while (string[counter] != '\0')
 	{

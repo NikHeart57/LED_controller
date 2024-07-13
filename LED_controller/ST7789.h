@@ -31,8 +31,8 @@
 #define PORT_RES	PORTC						// Порт на котором будет RES
 
 // Размеры экрана
-#define WIDTH			240
-#define HEIGHT			320
+#define SCREEN_WIDTH		240					// Размер экрана по горизонтали
+#define SCREEN_HEIGHT		240					// Размер экрана по вертикали
 
 // Дефолтные настройки шрифта
 #define RED_FONT			31
@@ -43,7 +43,7 @@
 #define GREEN_BACKGROUND	0
 #define BLUE_BACKGROUND		0
 
-#define FONT_SIZE			3
+#define FONT_SIZE			2
 
 
 
@@ -202,8 +202,8 @@ void ST7789_DrawRectangle(char x, char y, char hight, char lentgh, char red, cha
 void ST7789_DrawRectangle(char x, char y, char hight, char lentgh, colour paint);
 
 // Нарисовать квадрат
-void ST7789_DrawSquare(char x, char y, char red, char green, char blue, char size);
-void ST7789_DrawSquare(char x, char y, colour paint, char size);
+void ST7789_DrawSquare(char x, char y, char size, char red, char green, char blue);
+void ST7789_DrawSquare(char x, char y, char size, colour paint);
 
 
 // Залить экран цветом		
