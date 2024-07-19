@@ -11,54 +11,94 @@
 char itoa_temp[9];
 
 // Флаги
-bool second_update = true;
-bool minute_update = true;
-bool hour_update = true;
+bool sync_DS1307			= true;
 
-// Переменные кнопок
-enum button_name
+bool update_second			= true;
+bool update_minute			= true;
+bool update_hour			= true;
+bool update_clock			= false;	// Эта переменная нужна для обновления с красного шрифта на белый при прерключении между параметрами при настройке
+
+bool update_hour_sunrise	= true;
+bool update_minute_sunrise	= true;
+bool update_hour_day		= true;
+bool update_minute_day		= true;
+bool update_hour_sunset		= true;
+bool update_minute_sunset	= true;
+bool update_hour_night		= true;
+bool update_minute_night	= true;
+bool update_schedule		= false;	// Аналогично для расписания
+
+
+enum button
 {
-	button_PA0,
-	button_PA1,
-	button_PA2,
-	button_PA3,
-	button_NULL
+	none					= 0,
+	increase				= 1,
+	decrease				= 2,
+	clock					= 3,
+	schedule				= 4
 };
+int button = none;
 
-char button_active = button_NULL;
+enum mode
+{
+	normal_work				= 0,
+	setup_second			= 1,
+	setup_minute			= 2,
+	setup_hour				= 3,
+	setup_hour_sunrise		= 4,
+	setup_minute_sunrise	= 5,
+	setup_hour_day			= 6,
+	setup_minute_day		= 7,
+	setup_hour_sunset		= 8,
+	setup_minute_sunset		= 9,
+	setup_hour_night		= 10,
+	setup_minute_night		= 11
+};
+int mode = normal_work;
 
 
 // Переменные времени
-enum time_name
+enum time
 {
-	second,
-	minute,
-	hour,
-	day_of_week,
-	day,
-	month,
-	year
+	second			= 0,
+	minute			= 1,
+	hour			= 2,
+	day_of_week		= 3,
+	day				= 4,
+	month			= 5,
+	year			= 6
 };
 
-char time[7] = {0, 15, 21, 6, 13, 7, 24};
-char old_time = time[second];
+char time[] = {0, 0, 0, 1, 1, 1, 24};
+char time_temp[3] = {time[second], time[minute], time[hour]};	
+	
+char time_schedule[4][2] =
+{
+	{10, 00},
+	{12, 00},
+	{18, 00},
+	{20, 00}		
+};
+	
 
 
+// Прототипы функций
 void Setup_TIM0(void);
 void Setup_TIM1(void);
 void Setup_INT(void);
 void Setup_GPIO(void);
 
+void Buttons_Handler(void);
+
 
 int main(void)
 {
 	_delay_ms(100);
-	
+		
 	Setup_INT();
 	Setup_GPIO();
 	Setup_TIM1();
 	
-	//DS1307_WriteTime(time);
 	DS1307_ReadTime(time);	
 	
 	ST7789_InitSPI();
@@ -66,126 +106,522 @@ int main(void)
 	ST7789_FillScreen(BLACK);
 	ST7789_SetXYpos(0, 0);
 
+	colour WHITE1;
 	
 	while (1)
-	{			
-		if (hour_update)
+	{	
+		WHITE1.red = rand() % 30;
+		WHITE1.green = rand() % 60;
+		WHITE1.blue = rand() % 30;
+		
+		Buttons_Handler();
+		
+		//==============================================================================
+		//							Режим простого времени (0)
+		//==============================================================================
+		
+		/* 
+				**Схема**
+		if(mode != normal_work && update)
 		{
-			hour_update = false;
+			update = false;
+			** Код нормы **
+		}
+		else if(mode == normal_work && update)
+		{
+			update = false;	
+			** Код НЕнормы **	
+		}
+		*/
+		
+		
+		//==============================================================================
+		//							Режим настройки секунд (1)
+		//==============================================================================
+		
+		/* 
+				**Схема**
+		if(mode != setup_second && update_second)			// Сначала то что нужно делать в обычном режиме
+		{
+			update_second = false;
+			** Код нормы **
+		}
+		else if(mode == setup_second && update_second)		// Потом то что надо делать в необычном режиме
+		{
+			update_second = false;
+			** Код НЕнормы **		
+		}
+		*/
+		
+		if (mode != setup_second && update_second)
+		{
+			update_second = false;
+			
+			ST7789_SetXYpos(180, 0);
+			if (time[second] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 5);
+			}			
+			ST7789_PrintString((char*)itoa(time[second], itoa_temp, 10), WHITE1, 5);
+		}
+		else if (mode == setup_second && update_second)
+		{
+			update_second = false;
+			
+			ST7789_SetXYpos(180, 0);
+			if (time_temp[second] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 5);
+			}
+			ST7789_PrintString((char*)itoa(time_temp[second], itoa_temp, 10), RED, 5);
+			
+			if (update_clock)
+			{
+				update_clock = false;
+				/*	Убрал для экономии ресурса обновления монитора. Этот код избыточный, хотя и особо не мешает
+				ST7789_SetXYpos(0, 0);
+				if (time_temp[hour] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 5);
+				}
+				ST7789_PrintString((char*)itoa(time_temp[hour], itoa_temp, 10), WHITE1, 5);
+				
+				ST7789_SetXYpos(90, 0);
+				if (time_temp[minute] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 5);
+				}
+				ST7789_PrintString((char*)itoa(time_temp[minute], itoa_temp, 10), WHITE1, 5);
+				*/
+			}
+		}
+		
+		
+		//==============================================================================
+		//							Режим настройки минут (2)
+		//==============================================================================
+		
+		
+		if (mode != setup_minute && update_minute)
+		{
+			update_minute = false;
+			
+			ST7789_SetXYpos(90, 0);
+			if (time[minute] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 5);
+			}
+			ST7789_PrintString((char*)itoa(time[minute], itoa_temp, 10), WHITE1, 5);
+			ST7789_PrintString((char*)":", WHITE1, 5);		
+		}
+		else if (mode == setup_minute && update_minute)
+		{
+			update_minute = false;
+			
+			ST7789_SetXYpos(90, 0);
+			if (time_temp[minute] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 5);
+			}
+			ST7789_PrintString((char*)itoa(time_temp[minute], itoa_temp, 10), RED, 5);
+			
+			if (update_clock)
+			{
+				update_clock = false;
+				/*	Убрал для экономии ресурса обновления монитора. Этот код избыточный, хотя и особо не мешает
+				ST7789_SetXYpos(0, 0);
+				if (time_temp[hour] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 5);
+				}
+				ST7789_PrintString((char*)itoa(time_temp[hour], itoa_temp, 10), WHITE1, 5);
+				*/
+				ST7789_SetXYpos(180, 0);
+				if (time_temp[second] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 5);
+				}
+				ST7789_PrintString((char*)itoa(time_temp[second], itoa_temp, 10), WHITE1, 5);
+			}
+		}	
+		
+		
+		//==============================================================================
+		//							Режим настройки часов (3)
+		//==============================================================================
+		
+		if (mode != setup_hour && update_hour)
+		{
+			update_hour = false;
+			
 			ST7789_SetXYpos(0, 0);
 			if (time[hour] < 10)
 			{
-				ST7789_PrintString((char*)"0");
+				ST7789_PrintString((char*)"0", WHITE1, 5);
 			}
-			ST7789_PrintString((char*)itoa(time[hour], itoa_temp, 10));
-			ST7789_PrintString((char*)":");
+			ST7789_PrintString((char*)itoa(time[hour], itoa_temp, 10), WHITE1, 5);
+			ST7789_PrintString((char*)":", WHITE1, 5);	
 		}
-		
-		if (minute_update)
+		else if (mode == setup_hour && update_hour)
 		{
-			minute_update = false;
-			ST7789_SetXYpos(36, 0);
-			if (time[minute] < 10)
-			{
-				ST7789_PrintString((char*)"0");
-			}
-			ST7789_PrintString((char*)itoa(time[minute], itoa_temp, 10));
-			ST7789_PrintString((char*)":");
-		}
-		
-		if (second_update)
-		{
-			second_update = false;
-			ST7789_SetXYpos(72, 0);
-			if (time[second] < 10)
-			{
-				ST7789_PrintString((char*)"0");
-			}
-			ST7789_PrintString((char*)itoa(time[second], itoa_temp, 10));
-		}
-	}
-}
 
-ISR(TIMER1_COMPA_vect)
-{
-	cli();
-	
-	time[second]++;
-	second_update = true;
-
-	if (time[second] >= 60)
-	{
-		time[second] = 0;
-		time[minute]++;
-		minute_update = true;
-		
-		if (time[minute] >= 60)
-		{
-			time[minute] = 0;
-			time[hour]++;
-			hour_update = true;
+			update_hour = false;
 			
-			if (time[hour] >= 24)
+			ST7789_SetXYpos(0, 0);
+			if (time_temp[hour] < 10)
 			{
-				time[second] = 0;
-				time[minute] = 0;
-				time[hour] = 0;
+				ST7789_PrintString((char*)"0", RED, 5);
+			}
+			ST7789_PrintString((char*)itoa(time_temp[hour], itoa_temp, 10), RED, 5);
+				
+			if (update_clock)
+			{
+				update_clock = false;
+					
+				ST7789_SetXYpos(90, 0);
+				if (time_temp[minute] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 5);
+				}
+				ST7789_PrintString((char*)itoa(time_temp[minute], itoa_temp, 10), WHITE1, 5);
+				/*	Убрал для экономии ресурса обновления монитора. Этот код избыточный, хотя и особо не мешает
+				ST7789_SetXYpos(180, 0);
+				if (time_temp[second] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 5);
+				}
+				ST7789_PrintString((char*)itoa(time_temp[second], itoa_temp, 10), WHITE1, 5);
+				*/
+			}
+		}	
+		
+		//==============================================================================
+		//						Режим настройки расвета (4)
+		//==============================================================================
+		
+		if (mode != setup_hour_sunrise && update_hour_sunrise)
+		{
+			update_hour_sunrise = false;
+			
+			ST7789_SetXYpos(0, 136);
+			ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), WHITE1, 3);
+		}
+		else if (mode == setup_hour_sunrise && update_hour_sunrise)
+		{
+			update_hour_sunrise = false;
+				
+			ST7789_SetXYpos(0, 136);
+			ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), RED, 3);
+				
+			if (update_schedule)
+			{
+				update_schedule = false;
+				
+				ST7789_SetXYpos(0, 0);
+				if (time_temp[hour] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 5);
+				}
+				ST7789_PrintString((char*)itoa(time_temp[hour], itoa_temp, 10), WHITE1, 5);
 			}
 		}
+
+		
+		/*
+		if (mode == setup_minute_sunrise)
+		{
+			
+		}
+		*/
+
+		
+
+		ST7789_SetXYpos(180, 210);
+		ST7789_PrintString((char*)itoa(mode, itoa_temp, 10), rand() % 30, rand() % 60, rand() % 30, 3);
+		ST7789_PrintString((char*)" ", 3);
+		
+		ST7789_SetXYpos(210, 210);
+		ST7789_PrintString((char*)itoa(sync_DS1307, itoa_temp, 10), rand() % 30, rand() % 60, rand() % 30, 3);
 	}
-	
-	sei();
 }
 
 
-ISR(INT0_vect)
-{
-	cli();
-	
-	char ERR_counter = 0;
 
-	while (!(PINA == 254 || PINA == 253 || PINA == 251 || PINA == 247))		// Опрос порта A до тех пор пока не будет определена кнопка (типа против дребезга и некорректных значений в порте)
+void Buttons_Handler(void)
+{
+	//==============================================================================
+	//						Обработка нажатия кнопки инкремента
+	//==============================================================================
+	if (button == increase)
 	{
-		ERR_counter++;
-		_delay_ms(1);
+		// Закрытие заявки на обработку
+		button = none;
 		
-		if (ERR_counter > 20)												// Если после 20 опросов нет значения кнопки то выход из прерывания																					
-		{				
-			return;
+		switch (mode)
+		{
+			// Инкремент секунд
+			case setup_second:
+				{
+					time_temp[second]++;
+					
+					if (time_temp[second] >= 60)
+					{
+						time_temp[second] = 0;
+					}
+					
+					update_second = true;					
+				}
+				break;
+			
+			// Инкремент минут
+			case setup_minute:
+				{
+					time_temp[minute]++;
+					
+					if (time_temp[minute] >= 60)
+					{
+						time_temp[minute] = 0;
+					}
+					
+					update_minute = true;
+				}
+				break;
+			
+			// Инкремент часов
+			case setup_hour:
+				{
+					time_temp[hour]++;
+					
+					if (time_temp[hour] >= 24)
+					{
+						time_temp[hour] = 0;
+					}
+					
+					update_hour = true;
+				}
+				break;
 		}
 	}
-
-	switch (PINA)															// Запоминание нажатой кнопки
+	
+	//==============================================================================
+	//						Обработка нажатия кнопки декремента
+	//==============================================================================
+	if (button == decrease)
 	{
-		case 254:
-			button_active = button_PA0;
-		break;
-		case 253:
-			button_active = button_PA1;
-		break;
-		case 251:
-			button_active = button_PA2;
-		break;
-		case 247:
-			button_active = button_PA3;
-		break;
-		default:
-			button_active = button_NULL;
-			return;
-		break;
+		// Закрытие заявки на обработку
+		button = none;
+		
+		switch (mode)
+		{
+			// Инкремент секунд
+			case setup_second:
+				{
+					time_temp[second]--;
+					
+					if (time_temp[second] >= 60)
+					{
+						time_temp[second] = 59;
+					}
+					
+					update_second = true;
+				}
+				break;
+			
+			// Инкремент минут
+			case setup_minute:
+				{
+					time_temp[minute]--;
+				
+					if (time_temp[minute] >= 60)
+					{
+						time_temp[minute] = 59;
+					}
+					
+					update_minute = true;
+				
+				}
+				break;
+			
+			// Инкремент часов
+			case setup_hour:
+				{
+					time_temp[hour]--;
+					
+					if (time_temp[hour] >= 24)
+					{
+						time_temp[hour] = 23;
+					}
+					
+					update_hour = true;
+				}
+				break;
+		}
+	}
+	
+	
+	//==============================================================================
+	//						Обработка нажатия кнопки часов
+	//==============================================================================
+	if (button == clock)
+	{
+		// Проверка
+		if (mode == setup_hour_sunrise	|| mode == setup_minute_sunrise	||
+			mode == setup_hour_day		|| mode == setup_minute_day		||
+			mode == setup_hour_sunset	|| mode == setup_minute_sunset	||
+			mode == setup_hour_night	|| mode == setup_minute_night	) return;
+		
+		// Закрытие заявки на обработку
+		button = none;
+		
+		switch (mode)
+		{
+			// Переключение на настройку секунд
+			case normal_work:
+				{
+					mode = setup_second;
+					
+					update_second = true;
+					update_clock = true;
+			
+					for (int i = 0; i < 3; i++)
+					{
+						time_temp[i] = time[i];
+					}
+				}
+				break;
+			
+			// Переключение на настройку минут
+			case setup_second:
+				{
+					mode = setup_minute;
+					update_minute = true;
+					update_clock = true;
+				}
+				break;
+			
+			// Переключение на настройку часов
+			case setup_minute:
+				{
+					mode = setup_hour;
+					update_hour = true;
+					update_clock = true;
+				}
+				break;
+			
+			// Переключение на обычный режим
+			case setup_hour:
+				{
+					mode = normal_work;
+					update_second = true;
+					update_minute = true;
+					update_hour = true;
+					update_clock = true;
+					
+					for (int i = 0; i < 3; i++)
+					{
+						time[i] = time_temp[i];
+					}
+					
+					DS1307_WriteTime(time);
+				}
+				break;
+				
+			default:
+				{
+					mode = normal_work;
+					return;
+				}
+				break;
+		}
 	}	
+	
+	//==============================================================================
+	//						Обработка нажатия кнопки расписания
+	//==============================================================================
+	if (button == schedule)
+	{	
+		// Проверка
+		if (mode == setup_second || mode == setup_minute || mode == setup_hour) return;
 
-	ST7789_SetXYpos(0, 0);
-	ST7789_PrintString((char*) itoa(button_active, itoa_temp, 10));
-	
-	ST7789_SetXYpos(0, 32);
-	ST7789_PrintString((char*)"    ");
-	ST7789_SetXYpos(0, 32);
-	ST7789_PrintString((char*) itoa((int)ERR_counter, itoa_temp, 10));
-	
-	sei();
+		// Закрытие заявки на обработку
+		button = none;
+		
+		switch (mode)
+		{
+			// Переключение на настройку часов-рассвета
+			case normal_work:
+				{
+					mode = setup_hour_sunrise;
+					update_schedule = true;
+				}
+				break;
+				
+			// Переключение на настройку минут-рассвета
+			case setup_hour_sunrise:
+				{
+					mode = setup_minute_sunrise;
+					update_schedule = true;
+				}
+				break;	
+				
+			// Переключение на настройку часов-дня
+			case setup_minute_sunrise:
+				{
+					mode = setup_hour_day;
+					update_schedule = true;
+				}
+				break;	
+				
+			// Переключение на настройку минут-дня
+			case setup_hour_day:
+				{
+					mode = setup_minute_day;
+					update_schedule = true;
+				}
+				break;	
+				
+			// Переключение на настройку часов-заката
+			case setup_minute_day:
+				{
+					mode = setup_hour_sunset;
+					update_schedule = true;
+				}
+				break;
+			
+			// Переключение на настройку минут-заката
+			case setup_hour_sunset:
+				{
+					mode = setup_minute_sunset;
+					update_schedule = true;
+				}
+				break;	
+				
+			// Переключение на настройку часов-ночи
+				case setup_minute_sunset:
+				{
+					mode = setup_hour_night;
+					update_schedule = true;
+				}
+				break;
+			
+			// Переключение на настройку минут-заката
+			case setup_hour_night:
+				{
+					mode = setup_minute_night;
+					update_schedule = true;
+				}
+				break;	
+				
+			default:
+				{
+					mode = normal_work;
+					return;
+				}
+				break;
+		}
+		
+	}
 }
-
 
 void Setup_TIM0(void)
 {
@@ -223,4 +659,90 @@ void Setup_GPIO(void)
 {
 	PORTA = 0xff;						// Все единицы
 	DDRA = 0x00;						// Все вход
+}
+
+
+
+ISR(INT0_vect)
+{
+	cli();
+	_delay_ms(50);
+	
+	char bounce_counter = 0;
+
+	while (!(PINA == 254 || PINA == 253 || PINA == 251 || PINA == 247))		// Опрос порта A до тех пор пока не будет определена кнопка (типа против дребезга и некорректных значений в порте)
+	{
+		bounce_counter++;
+		_delay_ms(5);
+		
+		if (bounce_counter > 10)											// Если после 20 опросов нет значения кнопки то выход из прерывания
+		{
+			return;
+		}
+	}
+
+	switch (PINA)															// Запоминание нажатой кнопки
+	{
+		case 254:
+		button = increase;
+			break;
+		case 253:
+		button = decrease;
+			break;
+		case 251:
+		button = clock;
+			break;
+		case 247:
+		button = schedule;
+			break;
+		default:
+		return;
+			break;
+	}
+	
+	sei();
+}
+
+
+ISR(TIMER1_COMPA_vect)
+{
+	cli();
+	
+	time[second]++;
+	if (!(mode == setup_second || mode == setup_minute || mode == setup_hour)) update_second = true;
+
+	if (time[second] >= 60)
+	{
+		time[second] = 0;
+		time[minute]++;
+		if (!(mode == setup_second || mode == setup_minute || mode == setup_hour)) update_minute = true;
+		
+		if (time[minute] >= 60)
+		{
+			time[minute] = 0;
+			time[hour]++;
+			if (!(mode == setup_second || mode == setup_minute || mode == setup_hour)) update_hour = true;
+
+			if (time[hour] >= 24)
+			{
+				time[second] = 0;
+				time[minute] = 0;
+				time[hour] = 0;
+			}
+		}
+	}
+	
+	// Синхронизация
+	if (time[second] == 0 && time[minute] == 0 && sync_DS1307)
+	{
+		sync_DS1307 = false;
+		DS1307_ReadTime(time);
+	}
+	
+	if (time[second] == 0 && time[minute] == 1)
+	{
+		sync_DS1307 = true;
+	}
+	
+	sei();
 }
