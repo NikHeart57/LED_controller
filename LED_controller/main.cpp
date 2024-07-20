@@ -11,7 +11,7 @@
 char itoa_temp[9];
 
 // Флаги
-bool sync_DS1307			= true;
+bool update_sync_DS1307		= true;
 
 bool update_second			= true;
 bool update_minute			= true;
@@ -27,9 +27,10 @@ bool update_minute_sunset	= true;
 bool update_hour_night		= true;
 bool update_minute_night	= true;
 bool update_schedule		= false;	// Аналогично для расписания
+	
 
 
-enum button
+enum button_enum
 {
 	none					= 0,
 	increase				= 1,
@@ -37,9 +38,10 @@ enum button
 	clock					= 3,
 	schedule				= 4
 };
-int button = none;
 
-enum mode
+enum button_enum button = none;
+
+enum mode_enum
 {
 	normal_work				= 0,
 	setup_second			= 1,
@@ -54,11 +56,13 @@ enum mode
 	setup_hour_night		= 10,
 	setup_minute_night		= 11
 };
-int mode = normal_work;
+
+enum mode_enum mode = normal_work;
+
 
 
 // Переменные времени
-enum time
+enum time_enum
 {
 	second			= 0,
 	minute			= 1,
@@ -67,10 +71,10 @@ enum time
 	day				= 4,
 	month			= 5,
 	year			= 6
-};
+};	
 
-char time[] = {0, 0, 0, 1, 1, 1, 24};
-char time_temp[3] = {time[second], time[minute], time[hour]};	
+char time[year + 1] = {0, 0, 0, 1, 1, 1, 24};	
+char time_temp[hour + 1] = {time[second], time[minute], time[hour]};	
 	
 char time_schedule[4][2] =
 {
@@ -107,7 +111,7 @@ int main(void)
 	ST7789_SetXYpos(0, 0);
 
 	colour WHITE1;
-	
+
 	while (1)
 	{	
 		WHITE1.red = rand() % 30;
@@ -304,6 +308,10 @@ int main(void)
 			update_hour_sunrise = false;
 			
 			ST7789_SetXYpos(0, 136);
+			if (time_schedule[0][0] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 3);
+			}
 			ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), WHITE1, 3);
 		}
 		else if (mode == setup_hour_sunrise && update_hour_sunrise)
@@ -311,6 +319,10 @@ int main(void)
 			update_hour_sunrise = false;
 				
 			ST7789_SetXYpos(0, 136);
+			if (time_schedule[0][0] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 3);
+			}
 			ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), RED, 3);
 				
 			if (update_schedule)
@@ -318,30 +330,294 @@ int main(void)
 				update_schedule = false;
 				
 				ST7789_SetXYpos(0, 0);
-				if (time_temp[hour] < 10)
+				if (time[hour] < 10)
 				{
 					ST7789_PrintString((char*)"0", WHITE1, 5);
 				}
-				ST7789_PrintString((char*)itoa(time_temp[hour], itoa_temp, 10), WHITE1, 5);
+				ST7789_PrintString((char*)itoa(time[hour], itoa_temp, 10), WHITE1, 5);
 			}
 		}
 
 		
-		/*
-		if (mode == setup_minute_sunrise)
-		{
-			
-		}
-		*/
-
+		//==============================================================================
+		//						Режим настройки расвета (5)
+		//==============================================================================
 		
+		if (mode != setup_minute_sunrise && update_minute_sunrise)
+		{
+			update_minute_sunrise = false;
+			
+			ST7789_SetXYpos(54, 136);
+			if (time_schedule[0][1] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[0][1], itoa_temp, 10), WHITE1, 3);
+		}
+		else if (mode == setup_minute_sunrise && update_minute_sunrise)
+		{
+			update_minute_sunrise = false;
+			
+			ST7789_SetXYpos(54, 136);
+			if (time_schedule[0][1] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[0][1], itoa_temp, 10), RED, 3);
+			
+			if (update_schedule)
+			{
+				update_schedule = false;
+				
+				ST7789_SetXYpos(0, 136);
+				if (time_schedule[0][0] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 3);
+				}
+				ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), WHITE1, 3);
+			}
+		}
 
+		//==============================================================================
+		//						Режим настройки дня (6)
+		//==============================================================================
+		
+		if (mode != setup_hour_day && update_hour_day)
+		{
+			update_hour_day = false;
+			
+			ST7789_SetXYpos(0, 162);
+			if (time_schedule[1][0] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[1][0], itoa_temp, 10), WHITE1, 3);
+		}
+		else if (mode == setup_hour_day && update_hour_day)
+		{
+			update_hour_day = false;
+			
+			ST7789_SetXYpos(0, 162);
+			if (time_schedule[1][0] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[1][0], itoa_temp, 10), RED, 3);
+			
+			if (update_schedule)
+			{
+				update_schedule = false;
+				
+				ST7789_SetXYpos(54, 136);
+				if (time_schedule[0][1] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 3);
+				}
+				ST7789_PrintString((char*)itoa(time_schedule[0][1], itoa_temp, 10), WHITE1, 3);
+			}
+		}
+		
+		//==============================================================================
+		//						Режим настройки дня (7)
+		//==============================================================================
+		
+		if (mode != setup_minute_day && update_minute_day)
+		{
+			update_minute_day = false;
+			
+			ST7789_SetXYpos(54, 162);
+			if (time_schedule[1][1] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[1][1], itoa_temp, 10), WHITE1, 3);
+		}
+		else if (mode == setup_minute_day && update_minute_day)
+		{
+			update_minute_day = false;
+			
+			ST7789_SetXYpos(54, 162);
+			if (time_schedule[1][1] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[1][1], itoa_temp, 10), RED, 3);
+			
+			if (update_schedule)
+			{
+				update_schedule = false;
+				
+				ST7789_SetXYpos(0, 162);
+				if (time_schedule[1][0] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 3);
+				}
+				ST7789_PrintString((char*)itoa(time_schedule[1][0], itoa_temp, 10), WHITE1, 3);
+			}
+		}
+		
+		//==============================================================================
+		//						Режим настройки закта (8)
+		//==============================================================================
+		
+		if (mode != setup_hour_sunset && update_hour_sunset)
+		{
+			update_hour_sunset = false;
+			
+			ST7789_SetXYpos(0, 188);
+			if (time_schedule[2][0] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[2][0], itoa_temp, 10), WHITE1, 3);
+		}
+		else if (mode == setup_hour_sunset && update_hour_sunset)
+		{
+			update_hour_sunset = false;
+			
+			ST7789_SetXYpos(0, 188);
+			if (time_schedule[2][0] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[2][0], itoa_temp, 10), RED, 3);
+			
+			if (update_schedule)
+			{
+				update_schedule = false;
+				
+				ST7789_SetXYpos(54, 162);
+				if (time_schedule[1][1] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 3);
+				}
+				ST7789_PrintString((char*)itoa(time_schedule[1][1], itoa_temp, 10), WHITE1, 3);
+			}
+		}
+		
+		//==============================================================================
+		//						Режим настройки закта (9)
+		//==============================================================================
+		
+		if (mode != setup_minute_sunset && update_minute_sunset)
+		{
+			update_minute_sunset = false;
+			
+			ST7789_SetXYpos(54, 188);
+			if (time_schedule[2][1] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[2][1], itoa_temp, 10), WHITE1, 3);
+		}
+		else if (mode == setup_minute_sunset && update_minute_sunset)
+		{
+			update_minute_sunset = false;
+			
+			ST7789_SetXYpos(54, 188);
+			if (time_schedule[2][1] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[2][1], itoa_temp, 10), RED, 3);
+			
+			if (update_schedule)
+			{
+				update_schedule = false;
+				
+				ST7789_SetXYpos(0, 188);
+				if (time_schedule[2][0] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 3);
+				}
+				ST7789_PrintString((char*)itoa(time_schedule[2][0], itoa_temp, 10), WHITE1, 3);
+			}
+		}
+		
+		//==============================================================================
+		//						Режим настройки ночи (10)
+		//==============================================================================
+		
+		if (mode != setup_hour_night && update_hour_night)
+		{
+			update_hour_night = false;
+			
+			ST7789_SetXYpos(0, 214);
+			if (time_schedule[3][0] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[3][0], itoa_temp, 10), WHITE1, 3);
+		}
+		else if (mode == setup_hour_night && update_hour_night)
+		{
+			update_hour_night = false;
+			
+			ST7789_SetXYpos(0, 214);
+			if (time_schedule[3][0] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[3][0], itoa_temp, 10), RED, 3);
+			
+			if (update_schedule)
+			{
+				update_schedule = false;
+				
+				ST7789_SetXYpos(54, 188);
+				if (time_schedule[2][1] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 3);
+				}
+				ST7789_PrintString((char*)itoa(time_schedule[2][1], itoa_temp, 10), WHITE1, 3);
+			}
+		}
+		
+		//==============================================================================
+		//						Режим настройки закта (9)
+		//==============================================================================
+		
+		if (mode != setup_minute_night && update_minute_night)
+		{
+			update_minute_night = false;
+			
+			ST7789_SetXYpos(54, 214);
+			if (time_schedule[3][1] < 10)
+			{
+				ST7789_PrintString((char*)"0", WHITE1, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[3][1], itoa_temp, 10), WHITE1, 3);
+		}
+		else if (mode == setup_minute_night && update_minute_night)
+		{
+			update_minute_night = false;
+			
+			ST7789_SetXYpos(54, 214);
+			if (time_schedule[3][1] < 10)
+			{
+				ST7789_PrintString((char*)"0", RED, 3);
+			}
+			ST7789_PrintString((char*)itoa(time_schedule[3][1], itoa_temp, 10), RED, 3);
+			
+			if (update_schedule)
+			{
+				update_schedule = false;
+				
+				ST7789_SetXYpos(0, 214);
+				if (time_schedule[3][0] < 10)
+				{
+					ST7789_PrintString((char*)"0", WHITE1, 3);
+				}
+				ST7789_PrintString((char*)itoa(time_schedule[3][0], itoa_temp, 10), WHITE1, 3);
+			}
+		}
+		
 		ST7789_SetXYpos(180, 210);
 		ST7789_PrintString((char*)itoa(mode, itoa_temp, 10), rand() % 30, rand() % 60, rand() % 30, 3);
 		ST7789_PrintString((char*)" ", 3);
 		
 		ST7789_SetXYpos(210, 210);
-		ST7789_PrintString((char*)itoa(sync_DS1307, itoa_temp, 10), rand() % 30, rand() % 60, rand() % 30, 3);
+		ST7789_PrintString((char*)itoa(update_sync_DS1307, itoa_temp, 10), rand() % 30, rand() % 60, rand() % 30, 3);
 	}
 }
 
@@ -400,6 +676,125 @@ void Buttons_Handler(void)
 					update_hour = true;
 				}
 				break;
+			//**********************************************************	
+			// Инкремент часов рассвета
+			case setup_hour_sunrise:
+			{
+				time_schedule[0][0]++;
+				
+				if (time_schedule[0][0] >= 24)
+				{
+					time_schedule[0][0] = 0;
+				}
+				
+				update_hour_sunrise = true;
+			}
+			break;
+			
+			// Инкремент минут рассвета
+			case setup_minute_sunrise:
+			{
+				time_schedule[0][1]++;
+				
+				if (time_schedule[0][1] >= 60)
+				{
+					time_schedule[0][1] = 0;
+				}
+				
+				update_minute_sunrise = true;
+			}
+			break;	
+			
+			// Инкремент часов дня
+			case setup_hour_day:
+			{
+				time_schedule[1][0]++;
+				
+				if (time_schedule[1][0] >= 24)
+				{
+					time_schedule[1][0] = 0;
+				}
+				
+				update_hour_day = true;
+			}
+			break;
+			
+			// Инкремент минут дня
+			case setup_minute_day:
+			{
+				time_schedule[1][1]++;
+				
+				if (time_schedule[1][1] >= 60)
+				{
+					time_schedule[1][1] = 0;
+				}
+				
+				update_minute_day = true;
+			}
+			break;
+			
+			// Инкремент часов заката
+			case setup_hour_sunset:
+			{
+				time_schedule[2][0]++;
+				
+				if (time_schedule[2][0] >= 24)
+				{
+					time_schedule[2][0] = 0;
+				}
+				
+				update_hour_sunset = true;
+			}
+			break;
+			
+			// Инкремент минут заката
+			case setup_minute_sunset:
+			{
+				time_schedule[2][1]++;
+				
+				if (time_schedule[2][1] >= 60)
+				{
+					time_schedule[2][1] = 0;
+				}
+				
+				update_minute_sunset = true;
+			}
+			break;
+			
+			// Инкремент часов ночи
+			case setup_hour_night:
+			{
+				time_schedule[3][0]++;
+				
+				if (time_schedule[3][0] >= 24)
+				{
+					time_schedule[3][0] = 0;
+				}
+				
+				update_hour_night = true;
+			}
+			break;
+			
+			// Инкремент минут ночи
+			case setup_minute_night:
+			{
+				time_schedule[3][1]++;
+				
+				if (time_schedule[3][1] >= 60)
+				{
+					time_schedule[3][1] = 0;
+				}
+				
+				update_minute_night = true;
+			}
+			break;
+				
+			default:
+			{
+				mode = normal_work;
+				return;
+			}
+				break;
 		}
 	}
 	
@@ -455,6 +850,13 @@ void Buttons_Handler(void)
 					update_hour = true;
 				}
 				break;
+				
+			default:
+				{
+					mode = normal_work;
+					return;
+				}
+				break;
 		}
 	}
 	
@@ -494,6 +896,7 @@ void Buttons_Handler(void)
 			case setup_second:
 				{
 					mode = setup_minute;
+					
 					update_minute = true;
 					update_clock = true;
 				}
@@ -512,6 +915,7 @@ void Buttons_Handler(void)
 			case setup_hour:
 				{
 					mode = normal_work;
+					
 					update_second = true;
 					update_minute = true;
 					update_hour = true;
@@ -552,7 +956,9 @@ void Buttons_Handler(void)
 			case normal_work:
 				{
 					mode = setup_hour_sunrise;
+					
 					update_schedule = true;
+					update_hour_sunrise = true;
 				}
 				break;
 				
@@ -560,7 +966,9 @@ void Buttons_Handler(void)
 			case setup_hour_sunrise:
 				{
 					mode = setup_minute_sunrise;
+					
 					update_schedule = true;
+					update_minute_sunrise = true;
 				}
 				break;	
 				
@@ -568,7 +976,9 @@ void Buttons_Handler(void)
 			case setup_minute_sunrise:
 				{
 					mode = setup_hour_day;
+					
 					update_schedule = true;
+					update_hour_day = true;
 				}
 				break;	
 				
@@ -576,7 +986,9 @@ void Buttons_Handler(void)
 			case setup_hour_day:
 				{
 					mode = setup_minute_day;
+					
 					update_schedule = true;
+					update_minute_day = true;
 				}
 				break;	
 				
@@ -584,7 +996,9 @@ void Buttons_Handler(void)
 			case setup_minute_day:
 				{
 					mode = setup_hour_sunset;
+					
 					update_schedule = true;
+					update_hour_sunset = true;
 				}
 				break;
 			
@@ -592,7 +1006,9 @@ void Buttons_Handler(void)
 			case setup_hour_sunset:
 				{
 					mode = setup_minute_sunset;
+					
 					update_schedule = true;
+					update_minute_sunset = true;
 				}
 				break;	
 				
@@ -600,7 +1016,9 @@ void Buttons_Handler(void)
 				case setup_minute_sunset:
 				{
 					mode = setup_hour_night;
+					
 					update_schedule = true;
+					update_hour_night = true;
 				}
 				break;
 			
@@ -608,9 +1026,31 @@ void Buttons_Handler(void)
 			case setup_hour_night:
 				{
 					mode = setup_minute_night;
+					
 					update_schedule = true;
+					update_minute_night = true;
 				}
-				break;	
+				break;
+				
+			// Переключение на обычный режим										// TODO - добавить функцию записи в EEPROM!
+			case setup_minute_night:
+				{
+					mode = normal_work;
+					
+					update_schedule			= true;
+					update_hour_sunrise		= true;
+					update_hour_day			= true;
+					update_hour_sunset		= true;
+					update_hour_night		= true;
+					update_minute_sunrise	= true;
+					update_minute_day		= true;
+					update_minute_sunset	= true;
+					update_minute_night		= true;
+					
+					//функция_записи_в_EEPROM!(time_schedule);
+					
+				}
+				break;
 				
 			default:
 				{
@@ -733,15 +1173,15 @@ ISR(TIMER1_COMPA_vect)
 	}
 	
 	// Синхронизация
-	if (time[second] == 0 && time[minute] == 0 && sync_DS1307)
+	if (time[second] == 0 && time[minute] == 0 && update_sync_DS1307)
 	{
-		sync_DS1307 = false;
+		update_sync_DS1307 = false;
 		DS1307_ReadTime(time);
 	}
 	
 	if (time[second] == 0 && time[minute] == 1)
 	{
-		sync_DS1307 = true;
+		update_sync_DS1307 = true;
 	}
 	
 	sei();
