@@ -13,6 +13,10 @@ char itoa_temp[9];
 // Флаги
 bool update_sync_DS1307		= true;
 
+bool update_all				= true;
+
+bool update_word			= true;
+
 bool update_second			= true;
 bool update_minute			= true;
 bool update_hour			= true;
@@ -28,7 +32,6 @@ bool update_hour_night		= true;
 bool update_minute_night	= true;
 bool update_schedule		= false;	// Аналогично для расписания
 	
-
 
 enum button_enum
 {
@@ -75,6 +78,8 @@ enum time_enum
 
 char time[year + 1] = {0, 0, 0, 1, 1, 1, 24};	
 char time_temp[hour + 1] = {time[second], time[minute], time[hour]};	
+
+float time_Dec = (float)time[0] + (float)time[1] / 60.0 + (float)time[2] / 3600.0;
 	
 char time_schedule[4][2] =
 {
@@ -83,10 +88,26 @@ char time_schedule[4][2] =
 	{18, 00},
 	{20, 00}		
 };
+
+float time_schedule_Dec[4]=															
+{
+	(float)time_schedule[0][0] + (float)time_schedule[0][1] / 60.0,
+	(float)time_schedule[1][0] + (float)time_schedule[1][1] / 60.0,
+	(float)time_schedule[2][0] + (float)time_schedule[2][1] / 60.0,
+	(float)time_schedule[3][0] + (float)time_schedule[3][1] / 60.0,
+};	
+
+float time_schedule_Dec_old[4]=
+{
+
+};
 	
 
-
 // Прототипы функций
+inline void reverse(char* str, int len);
+inline int intToStr(int x, char str[], int d);
+char* ftoa(float n, char* res, int afterpoint);
+
 void Setup_TIM0(void);
 void Setup_TIM1(void);
 void Setup_INT(void);
@@ -97,10 +118,11 @@ void Buttons_Handler(void);
 
 int main(void)
 {
-	_delay_ms(100);
+	_delay_ms(200);
 		
 	Setup_INT();
 	Setup_GPIO();
+	Setup_TIM0();
 	Setup_TIM1();
 	
 	DS1307_ReadTime(time);	
@@ -110,35 +132,202 @@ int main(void)
 	ST7789_FillScreen(BLACK);
 	ST7789_SetXYpos(0, 0);
 
-	colour WHITE1;
+	colour Text_Colour = WHITE;
+	colour Text_Colour_RED = RED;
 
 	while (1)
 	{	
-		WHITE1.red = rand() % 30;
-		WHITE1.green = rand() % 60;
-		WHITE1.blue = rand() % 30;
+		
+		Text_Colour.red = rand() % 30;
+		Text_Colour.green = rand() % 60;
+		Text_Colour.blue = rand() % 30;
+		
 		
 		Buttons_Handler();
+		
+		
+		/* 
+				**Схема**
+		if(mode != setup_second && update_second)			// Сначала то что нужно делать в обычном режиме
+		{
+			update_second = false;
+			** Код нормы **
+		}
+		else if(mode == setup_second && update_second)		// Потом то что надо делать в необычном режиме
+		{
+			update_second = false;
+			** Код НЕнормы **		
+		}
+		*/
+		
+		//==============================================================================
+		//								Расчет времени
+		//==============================================================================
+
+		if(mode != normal_work && update_second)
+		{
+			
+		}
+		else if(mode == normal_work && update_second)
+		{			
+			// Расчеты времён
+			time_Dec = (float)time[hour] + (float)time[minute] / 60.0 + (float)time[second] / 3600.0;
+			
+			for(int i = 0; i < 4; i++)
+			{
+				time_schedule_Dec[i] = (float)time_schedule[i][0] + (float)time_schedule[i][1] / 60.0;
+			}
+			
+			update_word = true;
+		}
+
+		//==============================================================================
+		//								Слово настройка
+		//==============================================================================
+			
+		if(mode != normal_work && update_word)
+		{
+			update_word = false;
+			
+		}
+		else if(mode == normal_work && update_word)
+		{
+			update_word = false;
+				
+			// Определение времени суток, показываемого слова и скважности
+			// Время меньше чем время рассвета => ночь
+			
+			ST7789_SetXYpos(0, 40);
+			
+			if (time_Dec < time_schedule_Dec[0])
+			{
+				ST7789_PrintString((char*)"Ночь   ", Text_Colour, 5);
+				OCR0 = 0;
+			}
+				
+			// Время меньше чем время начала дня => рассвет
+			else if (time_Dec < time_schedule_Dec[1])
+			{
+				ST7789_PrintString((char*)"Рассвет", Text_Colour, 5);
+				OCR0 = (char)(((time_Dec - time_schedule_Dec[0])/(time_schedule_Dec[1] - time_schedule_Dec[0])) * 255.0);
+			}
+				
+			// Время меньше чем время конца дня => день
+			else if (time_Dec < time_schedule_Dec[2])
+			{
+				ST7789_PrintString((char*)"День   ", Text_Colour, 5);
+				OCR0 = 255;
+			}
+				
+			// Время меньше чем время конца заката => закат
+			else if (time_Dec < time_schedule_Dec[3])
+			{
+				ST7789_PrintString((char*)"Закат  ", Text_Colour, 5);
+				OCR0 = (char)((1.0 - ((time_Dec - time_schedule_Dec[2])/(time_schedule_Dec[3] - time_schedule_Dec[2]))) * 255.0);
+			}
+				
+			// В остальных случаях ночь
+			else
+			{
+				ST7789_PrintString((char*)"Ночь   ", Text_Colour, 5);
+				OCR0 = 0;
+			}	
+			
+			
+			
+			// Печать скважности
+
+			ST7789_SetXYpos(0, 90);
+			ST7789_PrintString((char*)"осв.", Text_Colour, 3);
+			
+			if ((float)OCR0/2.55 < 10)
+			{
+				ST7789_PrintString((char*)"0", Text_Colour, 3);
+			}
+			ST7789_PrintString(ftoa(((float)OCR0/2.55), itoa_temp, 2), Text_Colour, 3);
+			
+			ST7789_PrintString((char*)"%  ", Text_Colour, 3);	
+		}
+			
 		
 		//==============================================================================
 		//							Режим простого времени (0)
 		//==============================================================================
+
 		
-		/* 
-				**Схема**
-		if(mode != normal_work && update)
+		
+		
+		if(mode != normal_work && update_all)
 		{
-			update = false;
-			** Код нормы **
+			
+			update_all = false;					
 		}
-		else if(mode == normal_work && update)
+		else if(mode == normal_work && update_all)
 		{
-			update = false;	
-			** Код НЕнормы **	
+			
+			update_all = false;	
+			
+			ST7789_SetXYpos(60, 0);
+			ST7789_PrintString((char*)":", Text_Colour, 5);
+			ST7789_SetXYpos(150, 0);
+			ST7789_PrintString((char*)":", Text_Colour, 5);
+			
+			
+			for(int i = 0; i < 3; i++)
+			{
+				ST7789_SetXYpos(90 * i, 0);
+				if (time[2 - i] < 10)
+				{
+					ST7789_PrintString((char*)"0", Text_Colour, 5);
+				}
+				ST7789_PrintString((char*)itoa(time[2 - i], itoa_temp, 10), Text_Colour, 5);
+			}
+		
+			for(int i = 0; i < 4; i++)
+			{
+				ST7789_SetXYpos(36, 136 + 26 * i);
+				ST7789_PrintString((char*)":", Text_Colour, 3);
+			}		
+			
+			for(int i = 0; i < 4; i++)
+			{
+				for(int j = 0; j < 2; j++)
+				{
+					ST7789_SetXYpos(54 * j, 136 + 26 * i);
+									
+					if (time_schedule[i][j] < 10)
+					{
+						ST7789_PrintString((char*)"0", Text_Colour, 3);
+					}
+					ST7789_PrintString((char*)itoa(time_schedule[i][j], itoa_temp, 10), Text_Colour, 3);
+				}
+				
+				switch (i)
+				{
+					case 0:
+						ST7789_PrintString((char*)" Рассвет", Text_Colour, 3);
+						break;
+						
+					case 1:
+						ST7789_PrintString((char*)" День   ", Text_Colour, 3);
+						break;
+						
+					case 2:
+						ST7789_PrintString((char*)" Закат  ", Text_Colour, 3);
+						break;	
+						
+					case 3:
+						ST7789_PrintString((char*)" Ночь   ", Text_Colour, 3);
+						break;
+						
+					default:
+						break;
+				}
+			}
 		}
-		*/
 		
 		
+
 		//==============================================================================
 		//							Режим настройки секунд (1)
 		//==============================================================================
@@ -164,9 +353,9 @@ int main(void)
 			ST7789_SetXYpos(180, 0);
 			if (time[second] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 5);
+				ST7789_PrintString((char*)"0", Text_Colour, 5);
 			}			
-			ST7789_PrintString((char*)itoa(time[second], itoa_temp, 10), WHITE1, 5);
+			ST7789_PrintString((char*)itoa(time[second], itoa_temp, 10), Text_Colour, 5);
 		}
 		else if (mode == setup_second && update_second)
 		{
@@ -175,9 +364,9 @@ int main(void)
 			ST7789_SetXYpos(180, 0);
 			if (time_temp[second] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 5);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 5);
 			}
-			ST7789_PrintString((char*)itoa(time_temp[second], itoa_temp, 10), RED, 5);
+			ST7789_PrintString((char*)itoa(time_temp[second], itoa_temp, 10), Text_Colour_RED, 5);
 			
 			if (update_clock)
 			{
@@ -205,7 +394,6 @@ int main(void)
 		//							Режим настройки минут (2)
 		//==============================================================================
 		
-		
 		if (mode != setup_minute && update_minute)
 		{
 			update_minute = false;
@@ -213,10 +401,10 @@ int main(void)
 			ST7789_SetXYpos(90, 0);
 			if (time[minute] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 5);
+				ST7789_PrintString((char*)"0", Text_Colour, 5);
 			}
-			ST7789_PrintString((char*)itoa(time[minute], itoa_temp, 10), WHITE1, 5);
-			ST7789_PrintString((char*)":", WHITE1, 5);		
+			ST7789_PrintString((char*)itoa(time[minute], itoa_temp, 10), Text_Colour, 5);
+			//ST7789_PrintString((char*)":", WHITE1, 5);		
 		}
 		else if (mode == setup_minute && update_minute)
 		{
@@ -225,9 +413,9 @@ int main(void)
 			ST7789_SetXYpos(90, 0);
 			if (time_temp[minute] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 5);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 5);
 			}
-			ST7789_PrintString((char*)itoa(time_temp[minute], itoa_temp, 10), RED, 5);
+			ST7789_PrintString((char*)itoa(time_temp[minute], itoa_temp, 10), Text_Colour_RED, 5);
 			
 			if (update_clock)
 			{
@@ -243,9 +431,9 @@ int main(void)
 				ST7789_SetXYpos(180, 0);
 				if (time_temp[second] < 10)
 				{
-					ST7789_PrintString((char*)"0", WHITE1, 5);
+					ST7789_PrintString((char*)"0", Text_Colour, 5);
 				}
-				ST7789_PrintString((char*)itoa(time_temp[second], itoa_temp, 10), WHITE1, 5);
+				ST7789_PrintString((char*)itoa(time_temp[second], itoa_temp, 10), Text_Colour, 5);
 			}
 		}	
 		
@@ -261,10 +449,10 @@ int main(void)
 			ST7789_SetXYpos(0, 0);
 			if (time[hour] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 5);
+				ST7789_PrintString((char*)"0", Text_Colour, 5);
 			}
-			ST7789_PrintString((char*)itoa(time[hour], itoa_temp, 10), WHITE1, 5);
-			ST7789_PrintString((char*)":", WHITE1, 5);	
+			ST7789_PrintString((char*)itoa(time[hour], itoa_temp, 10), Text_Colour, 5);
+			//ST7789_PrintString((char*)":", WHITE1, 5);	
 		}
 		else if (mode == setup_hour && update_hour)
 		{
@@ -274,9 +462,9 @@ int main(void)
 			ST7789_SetXYpos(0, 0);
 			if (time_temp[hour] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 5);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 5);
 			}
-			ST7789_PrintString((char*)itoa(time_temp[hour], itoa_temp, 10), RED, 5);
+			ST7789_PrintString((char*)itoa(time_temp[hour], itoa_temp, 10), Text_Colour_RED, 5);
 				
 			if (update_clock)
 			{
@@ -285,9 +473,9 @@ int main(void)
 				ST7789_SetXYpos(90, 0);
 				if (time_temp[minute] < 10)
 				{
-					ST7789_PrintString((char*)"0", WHITE1, 5);
+					ST7789_PrintString((char*)"0", Text_Colour, 5);
 				}
-				ST7789_PrintString((char*)itoa(time_temp[minute], itoa_temp, 10), WHITE1, 5);
+				ST7789_PrintString((char*)itoa(time_temp[minute], itoa_temp, 10), Text_Colour, 5);
 				/*	Убрал для экономии ресурса обновления монитора. Этот код избыточный, хотя и особо не мешает
 				ST7789_SetXYpos(180, 0);
 				if (time_temp[second] < 10)
@@ -298,6 +486,7 @@ int main(void)
 				*/
 			}
 		}	
+		
 		
 		//==============================================================================
 		//						Режим настройки расвета (4)
@@ -310,9 +499,9 @@ int main(void)
 			ST7789_SetXYpos(0, 136);
 			if (time_schedule[0][0] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 3);
+				ST7789_PrintString((char*)"0", Text_Colour, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), WHITE1, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), Text_Colour, 3);
 		}
 		else if (mode == setup_hour_sunrise && update_hour_sunrise)
 		{
@@ -321,10 +510,11 @@ int main(void)
 			ST7789_SetXYpos(0, 136);
 			if (time_schedule[0][0] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 3);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), RED, 3);
-				
+			ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), Text_Colour_RED, 3);
+			
+			/* Обновление часов - не нужно	
 			if (update_schedule)
 			{
 				update_schedule = false;
@@ -335,7 +525,7 @@ int main(void)
 					ST7789_PrintString((char*)"0", WHITE1, 5);
 				}
 				ST7789_PrintString((char*)itoa(time[hour], itoa_temp, 10), WHITE1, 5);
-			}
+			}*/
 		}
 
 		
@@ -350,9 +540,9 @@ int main(void)
 			ST7789_SetXYpos(54, 136);
 			if (time_schedule[0][1] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 3);
+				ST7789_PrintString((char*)"0", Text_Colour, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[0][1], itoa_temp, 10), WHITE1, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[0][1], itoa_temp, 10), Text_Colour, 3);
 		}
 		else if (mode == setup_minute_sunrise && update_minute_sunrise)
 		{
@@ -361,9 +551,9 @@ int main(void)
 			ST7789_SetXYpos(54, 136);
 			if (time_schedule[0][1] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 3);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[0][1], itoa_temp, 10), RED, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[0][1], itoa_temp, 10), Text_Colour_RED, 3);
 			
 			if (update_schedule)
 			{
@@ -372,11 +562,12 @@ int main(void)
 				ST7789_SetXYpos(0, 136);
 				if (time_schedule[0][0] < 10)
 				{
-					ST7789_PrintString((char*)"0", WHITE1, 3);
+					ST7789_PrintString((char*)"0", Text_Colour, 3);
 				}
-				ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), WHITE1, 3);
+				ST7789_PrintString((char*)itoa(time_schedule[0][0], itoa_temp, 10), Text_Colour, 3);
 			}
 		}
+
 
 		//==============================================================================
 		//						Режим настройки дня (6)
@@ -389,9 +580,9 @@ int main(void)
 			ST7789_SetXYpos(0, 162);
 			if (time_schedule[1][0] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 3);
+				ST7789_PrintString((char*)"0", Text_Colour, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[1][0], itoa_temp, 10), WHITE1, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[1][0], itoa_temp, 10), Text_Colour, 3);
 		}
 		else if (mode == setup_hour_day && update_hour_day)
 		{
@@ -400,9 +591,9 @@ int main(void)
 			ST7789_SetXYpos(0, 162);
 			if (time_schedule[1][0] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 3);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[1][0], itoa_temp, 10), RED, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[1][0], itoa_temp, 10), Text_Colour_RED, 3);
 			
 			if (update_schedule)
 			{
@@ -411,11 +602,12 @@ int main(void)
 				ST7789_SetXYpos(54, 136);
 				if (time_schedule[0][1] < 10)
 				{
-					ST7789_PrintString((char*)"0", WHITE1, 3);
+					ST7789_PrintString((char*)"0", Text_Colour, 3);
 				}
-				ST7789_PrintString((char*)itoa(time_schedule[0][1], itoa_temp, 10), WHITE1, 3);
+				ST7789_PrintString((char*)itoa(time_schedule[0][1], itoa_temp, 10), Text_Colour, 3);
 			}
 		}
+		
 		
 		//==============================================================================
 		//						Режим настройки дня (7)
@@ -428,9 +620,9 @@ int main(void)
 			ST7789_SetXYpos(54, 162);
 			if (time_schedule[1][1] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 3);
+				ST7789_PrintString((char*)"0", Text_Colour, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[1][1], itoa_temp, 10), WHITE1, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[1][1], itoa_temp, 10), Text_Colour, 3);
 		}
 		else if (mode == setup_minute_day && update_minute_day)
 		{
@@ -439,9 +631,9 @@ int main(void)
 			ST7789_SetXYpos(54, 162);
 			if (time_schedule[1][1] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 3);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[1][1], itoa_temp, 10), RED, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[1][1], itoa_temp, 10), Text_Colour_RED, 3);
 			
 			if (update_schedule)
 			{
@@ -450,11 +642,12 @@ int main(void)
 				ST7789_SetXYpos(0, 162);
 				if (time_schedule[1][0] < 10)
 				{
-					ST7789_PrintString((char*)"0", WHITE1, 3);
+					ST7789_PrintString((char*)"0", Text_Colour, 3);
 				}
-				ST7789_PrintString((char*)itoa(time_schedule[1][0], itoa_temp, 10), WHITE1, 3);
+				ST7789_PrintString((char*)itoa(time_schedule[1][0], itoa_temp, 10), Text_Colour, 3);
 			}
 		}
+		
 		
 		//==============================================================================
 		//						Режим настройки закта (8)
@@ -467,9 +660,9 @@ int main(void)
 			ST7789_SetXYpos(0, 188);
 			if (time_schedule[2][0] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 3);
+				ST7789_PrintString((char*)"0", Text_Colour, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[2][0], itoa_temp, 10), WHITE1, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[2][0], itoa_temp, 10), Text_Colour, 3);
 		}
 		else if (mode == setup_hour_sunset && update_hour_sunset)
 		{
@@ -478,9 +671,9 @@ int main(void)
 			ST7789_SetXYpos(0, 188);
 			if (time_schedule[2][0] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 3);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[2][0], itoa_temp, 10), RED, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[2][0], itoa_temp, 10), Text_Colour_RED, 3);
 			
 			if (update_schedule)
 			{
@@ -489,11 +682,12 @@ int main(void)
 				ST7789_SetXYpos(54, 162);
 				if (time_schedule[1][1] < 10)
 				{
-					ST7789_PrintString((char*)"0", WHITE1, 3);
+					ST7789_PrintString((char*)"0", Text_Colour, 3);
 				}
-				ST7789_PrintString((char*)itoa(time_schedule[1][1], itoa_temp, 10), WHITE1, 3);
+				ST7789_PrintString((char*)itoa(time_schedule[1][1], itoa_temp, 10), Text_Colour, 3);
 			}
 		}
+		
 		
 		//==============================================================================
 		//						Режим настройки закта (9)
@@ -506,9 +700,9 @@ int main(void)
 			ST7789_SetXYpos(54, 188);
 			if (time_schedule[2][1] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 3);
+				ST7789_PrintString((char*)"0", Text_Colour, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[2][1], itoa_temp, 10), WHITE1, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[2][1], itoa_temp, 10), Text_Colour, 3);
 		}
 		else if (mode == setup_minute_sunset && update_minute_sunset)
 		{
@@ -517,9 +711,9 @@ int main(void)
 			ST7789_SetXYpos(54, 188);
 			if (time_schedule[2][1] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 3);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[2][1], itoa_temp, 10), RED, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[2][1], itoa_temp, 10), Text_Colour_RED, 3);
 			
 			if (update_schedule)
 			{
@@ -528,11 +722,12 @@ int main(void)
 				ST7789_SetXYpos(0, 188);
 				if (time_schedule[2][0] < 10)
 				{
-					ST7789_PrintString((char*)"0", WHITE1, 3);
+					ST7789_PrintString((char*)"0", Text_Colour, 3);
 				}
-				ST7789_PrintString((char*)itoa(time_schedule[2][0], itoa_temp, 10), WHITE1, 3);
+				ST7789_PrintString((char*)itoa(time_schedule[2][0], itoa_temp, 10), Text_Colour, 3);
 			}
 		}
+		
 		
 		//==============================================================================
 		//						Режим настройки ночи (10)
@@ -545,9 +740,9 @@ int main(void)
 			ST7789_SetXYpos(0, 214);
 			if (time_schedule[3][0] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 3);
+				ST7789_PrintString((char*)"0", Text_Colour, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[3][0], itoa_temp, 10), WHITE1, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[3][0], itoa_temp, 10), Text_Colour, 3);
 		}
 		else if (mode == setup_hour_night && update_hour_night)
 		{
@@ -556,9 +751,9 @@ int main(void)
 			ST7789_SetXYpos(0, 214);
 			if (time_schedule[3][0] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 3);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[3][0], itoa_temp, 10), RED, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[3][0], itoa_temp, 10), Text_Colour_RED, 3);
 			
 			if (update_schedule)
 			{
@@ -567,11 +762,12 @@ int main(void)
 				ST7789_SetXYpos(54, 188);
 				if (time_schedule[2][1] < 10)
 				{
-					ST7789_PrintString((char*)"0", WHITE1, 3);
+					ST7789_PrintString((char*)"0", Text_Colour, 3);
 				}
-				ST7789_PrintString((char*)itoa(time_schedule[2][1], itoa_temp, 10), WHITE1, 3);
+				ST7789_PrintString((char*)itoa(time_schedule[2][1], itoa_temp, 10), Text_Colour, 3);
 			}
 		}
+		
 		
 		//==============================================================================
 		//						Режим настройки закта (9)
@@ -584,9 +780,9 @@ int main(void)
 			ST7789_SetXYpos(54, 214);
 			if (time_schedule[3][1] < 10)
 			{
-				ST7789_PrintString((char*)"0", WHITE1, 3);
+				ST7789_PrintString((char*)"0", Text_Colour, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[3][1], itoa_temp, 10), WHITE1, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[3][1], itoa_temp, 10), Text_Colour, 3);
 		}
 		else if (mode == setup_minute_night && update_minute_night)
 		{
@@ -595,9 +791,9 @@ int main(void)
 			ST7789_SetXYpos(54, 214);
 			if (time_schedule[3][1] < 10)
 			{
-				ST7789_PrintString((char*)"0", RED, 3);
+				ST7789_PrintString((char*)"0", Text_Colour_RED, 3);
 			}
-			ST7789_PrintString((char*)itoa(time_schedule[3][1], itoa_temp, 10), RED, 3);
+			ST7789_PrintString((char*)itoa(time_schedule[3][1], itoa_temp, 10), Text_Colour_RED, 3);
 			
 			if (update_schedule)
 			{
@@ -606,18 +802,20 @@ int main(void)
 				ST7789_SetXYpos(0, 214);
 				if (time_schedule[3][0] < 10)
 				{
-					ST7789_PrintString((char*)"0", WHITE1, 3);
+					ST7789_PrintString((char*)"0", Text_Colour, 3);
 				}
-				ST7789_PrintString((char*)itoa(time_schedule[3][0], itoa_temp, 10), WHITE1, 3);
+				ST7789_PrintString((char*)itoa(time_schedule[3][0], itoa_temp, 10), Text_Colour, 3);
 			}
 		}
 		
-		ST7789_SetXYpos(180, 210);
+		/*
+		ST7789_SetXYpos(190, 214);
 		ST7789_PrintString((char*)itoa(mode, itoa_temp, 10), rand() % 30, rand() % 60, rand() % 30, 3);
 		ST7789_PrintString((char*)" ", 3);
 		
-		ST7789_SetXYpos(210, 210);
+		ST7789_SetXYpos(214, 214);
 		ST7789_PrintString((char*)itoa(update_sync_DS1307, itoa_temp, 10), rand() % 30, rand() % 60, rand() % 30, 3);
+		*/
 	}
 }
 
@@ -680,120 +878,141 @@ void Buttons_Handler(void)
 			// Инкремент часов рассвета
 			case setup_hour_sunrise:
 			{
-				time_schedule[0][0]++;
+			
+				if ((time_schedule[0][0] + 1) * 60 + time_schedule[0][1] <= time_schedule[1][0] * 60 + time_schedule[1][1])
+				{
+					time_schedule[0][0]++;
+				}
 				
 				if (time_schedule[0][0] >= 24)
 				{
-					time_schedule[0][0] = 0;
+					time_schedule[0][0] = 23;
 				}
 				
 				update_hour_sunrise = true;
-			}
-			break;
+				}
+				break;
 			
 			// Инкремент минут рассвета
 			case setup_minute_sunrise:
 			{
-				time_schedule[0][1]++;
+				if (time_schedule[0][0] * 60 + time_schedule[0][1] + 2 <= time_schedule[1][0] * 60 + time_schedule[1][1])
+				{
+					time_schedule[0][1]++;
+				}
 				
 				if (time_schedule[0][1] >= 60)
 				{
-					time_schedule[0][1] = 0;
+					time_schedule[0][1] = 59;
 				}
 				
 				update_minute_sunrise = true;
-			}
-			break;	
+				}
+				break;	
 			
 			// Инкремент часов дня
 			case setup_hour_day:
 			{
-				time_schedule[1][0]++;
+				if ((time_schedule[1][0] + 1) * 60 + time_schedule[1][1] <= time_schedule[2][0] * 60 + time_schedule[2][1])
+				{
+					time_schedule[1][0]++;
+				}
 				
 				if (time_schedule[1][0] >= 24)
 				{
-					time_schedule[1][0] = 0;
+					time_schedule[1][0] = 23;
 				}
 				
 				update_hour_day = true;
-			}
-			break;
+				}
+				break;
 			
 			// Инкремент минут дня
 			case setup_minute_day:
 			{
-				time_schedule[1][1]++;
+				if (time_schedule[1][0] * 60 + time_schedule[1][1] + 2 <= time_schedule[2][0] * 60 + time_schedule[2][1])
+				{
+					time_schedule[1][1]++;
+				}
 				
 				if (time_schedule[1][1] >= 60)
 				{
-					time_schedule[1][1] = 0;
+					time_schedule[1][1] = 59;
 				}
 				
 				update_minute_day = true;
-			}
-			break;
+				}
+				break;
 			
 			// Инкремент часов заката
 			case setup_hour_sunset:
 			{
-				time_schedule[2][0]++;
+				if ((time_schedule[2][0] + 1) * 60 + time_schedule[2][1] <= time_schedule[3][0] * 60 + time_schedule[3][1])
+				{
+					time_schedule[2][0]++;
+				}
 				
 				if (time_schedule[2][0] >= 24)
 				{
-					time_schedule[2][0] = 0;
+					time_schedule[2][0] = 23;
 				}
 				
 				update_hour_sunset = true;
-			}
-			break;
+				}
+				break;
 			
 			// Инкремент минут заката
 			case setup_minute_sunset:
 			{
-				time_schedule[2][1]++;
+				if (time_schedule[2][0] * 60 + time_schedule[2][1] + 2 <= time_schedule[3][0] * 60 + time_schedule[3][1])
+				{
+					time_schedule[2][1]++;
+				}
 				
 				if (time_schedule[2][1] >= 60)
 				{
-					time_schedule[2][1] = 0;
+					time_schedule[2][1] = 59;
 				}
 				
 				update_minute_sunset = true;
-			}
-			break;
+				}
+				break;
 			
 			// Инкремент часов ночи
 			case setup_hour_night:
 			{
+				// Без ограничений
 				time_schedule[3][0]++;
 				
 				if (time_schedule[3][0] >= 24)
 				{
-					time_schedule[3][0] = 0;
+					time_schedule[3][0] = 23;
 				}
 				
 				update_hour_night = true;
-			}
-			break;
+				}
+				break;
 			
 			// Инкремент минут ночи
 			case setup_minute_night:
 			{
+				// Без ограничений
 				time_schedule[3][1]++;
 				
 				if (time_schedule[3][1] >= 60)
 				{
-					time_schedule[3][1] = 0;
+					time_schedule[3][1] = 59;
 				}
 				
 				update_minute_night = true;
-			}
-			break;
+				}
+				break;
 				
 			default:
 			{
 				mode = normal_work;
 				return;
-			}
+				}
 				break;
 		}
 	}
@@ -808,7 +1027,7 @@ void Buttons_Handler(void)
 		
 		switch (mode)
 		{
-			// Инкремент секунд
+			// Декремент секунд
 			case setup_second:
 				{
 					time_temp[second]--;
@@ -822,7 +1041,7 @@ void Buttons_Handler(void)
 				}
 				break;
 			
-			// Инкремент минут
+			// Декремент минут
 			case setup_minute:
 				{
 					time_temp[minute]--;
@@ -837,7 +1056,7 @@ void Buttons_Handler(void)
 				}
 				break;
 			
-			// Инкремент часов
+			// Декремент часов
 			case setup_hour:
 				{
 					time_temp[hour]--;
@@ -850,6 +1069,139 @@ void Buttons_Handler(void)
 					update_hour = true;
 				}
 				break;
+			//**********************************************************	
+			// Декремент часов рассвета
+			case setup_hour_sunrise:
+			{
+				// Уменьшение без ограничений
+				time_schedule[0][0]--;
+				
+				if (time_schedule[0][0] >= 24)
+				{
+					time_schedule[0][0] = 0;
+				}
+				
+				update_hour_sunrise = true;
+				}
+				break;
+			
+			// Декремент минут рассвета
+			case setup_minute_sunrise:
+			{
+				// Уменьшение без ограничений
+				time_schedule[0][1]--;
+				
+				if (time_schedule[0][1] >= 60)
+				{
+					time_schedule[0][1] = 0;
+				}
+				
+				update_minute_sunrise = true;
+				}
+				break;	
+			
+			// Декремент часов дня
+			case setup_hour_day:
+			{
+				if ((time_schedule[1][0] - 1) * 60 + time_schedule[1][1] > time_schedule[0][0] * 60 + time_schedule[0][1])
+				{
+					time_schedule[1][0]--;
+				}
+				
+				if (time_schedule[1][0] >= 24)
+				{
+					time_schedule[1][0] = 0;
+				}
+				
+				update_hour_day = true;
+				}
+				break;
+			
+			// Декремент минут дня
+			case setup_minute_day:
+			{
+				if ((time_schedule[1][0]) * 60 + time_schedule[1][1] - 1 > time_schedule[0][0] * 60 + time_schedule[0][1])
+				{
+					time_schedule[1][1]--;
+				}
+				
+				if (time_schedule[1][1] >= 60)
+				{
+					time_schedule[1][1] = 0;
+				}
+				
+				update_minute_day = true;
+				}
+				break;
+			
+			// Декремент часов заката
+			case setup_hour_sunset:
+			{
+				if ((time_schedule[2][0] - 1) * 60 + time_schedule[2][1] > time_schedule[1][0] * 60 + time_schedule[1][1])
+				{
+					time_schedule[2][0]--;
+				}
+				
+				if (time_schedule[2][0] >= 24)
+				{
+					time_schedule[2][0] = 0;
+				}
+				
+				update_hour_sunset = true;
+				}
+				break;
+			
+			// Декремент минут заката
+			case setup_minute_sunset:
+			{
+				if ((time_schedule[2][0]) * 60 + time_schedule[2][1] - 1 > time_schedule[1][0] * 60 + time_schedule[1][1])
+				{
+					time_schedule[2][1]--;
+				}
+				
+				if (time_schedule[2][1] >= 60)
+				{
+					time_schedule[2][1] = 0;
+				}
+				
+				update_minute_sunset = true;
+				}
+				break;
+			
+			// Декремент часов ночи
+			case setup_hour_night:
+			{
+				if ((time_schedule[3][0] - 1) * 60 + time_schedule[3][1] > time_schedule[2][0] * 60 + time_schedule[2][1])
+				{
+					time_schedule[3][0]--;
+				}
+				
+				if (time_schedule[3][0] >= 24)
+				{
+					time_schedule[3][0] = 0;
+				}
+				
+				update_hour_night = true;
+				}
+				break;
+			
+			// Декремент минут ночи
+			case setup_minute_night:
+			{
+				if ((time_schedule[3][0]) * 60 + time_schedule[3][1] - 1 > time_schedule[2][0] * 60 + time_schedule[2][1])
+				{
+					time_schedule[3][1]--;
+				}
+				
+				if (time_schedule[3][1] >= 60)
+				{
+					time_schedule[3][1] = 0;
+				}
+				
+				update_minute_night = true;
+				}
+				break;	
+				
 				
 			default:
 				{
@@ -921,6 +1273,8 @@ void Buttons_Handler(void)
 					update_hour = true;
 					update_clock = true;
 					
+					update_word = true;
+					
 					for (int i = 0; i < 3; i++)
 					{
 						time[i] = time_temp[i];
@@ -929,6 +1283,8 @@ void Buttons_Handler(void)
 					DS1307_WriteTime(time);
 				}
 				break;
+				
+				
 				
 			default:
 				{
@@ -1185,4 +1541,67 @@ ISR(TIMER1_COMPA_vect)
 	}
 	
 	sei();
+}
+
+
+// Reverses a string 'str' of length 'len'
+inline void reverse(char* str, int len)
+{
+	int i = 0, j = len - 1, temp;
+	while (i < j) {
+		temp = str[i];
+		str[i] = str[j];
+		str[j] = temp;
+		i++;
+		j--;
+	}
+}
+
+// Converts a given integer x to string str[].
+// d is the number of digits required in the output.
+// If d is more than the number of digits in x,
+// then 0s are added at the beginning.
+inline int intToStr(int x, char str[], int d)
+{
+	int i = 0;
+	while (x) {
+		str[i++] = (x % 10) + '0';
+		x = x / 10;
+	}
+	
+	// If number of digits required is more, then
+	// add 0s at the beginning
+	while (i < d)
+	str[i++] = '0';
+	
+	reverse(str, i);
+	str[i] = '\0';
+	return i;
+}
+
+// Converts a floating-point/double number to a string.
+char* ftoa(float n, char* res, int afterpoint)
+{
+	// Extract integer part
+	int ipart = (int)n;
+	
+	// Extract floating part
+	float fpart = n - (float)ipart;
+	
+	// convert integer part to string
+	int i = intToStr(ipart, res, 0);
+	
+	// check for display option after point
+	if (afterpoint != 0) {
+		res[i] = '.'; // add dot
+		
+		// Get the value of fraction part upto given no.
+		// of points after dot. The third parameter
+		// is needed to handle cases like 233.007
+		fpart = fpart * pow(10, afterpoint);
+		
+		intToStr((int)fpart, res + i + 1, afterpoint);
+	}
+	
+	return res;
 }

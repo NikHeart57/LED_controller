@@ -82,7 +82,7 @@ void ST7789_InitST7789(void)
 	SendData(0);					// YE highpart	(Старшая часть конечного положения Ряда)
 	SendData(240);					// YE highpart	(Младшая часть конечного положения Ряда)
 	_delay_ms(10);
-	
+		
 	SendCommand(CMD_INVON);			// Display inversion - on
 	_delay_ms(10);
 	
