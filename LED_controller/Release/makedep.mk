@@ -4,6 +4,8 @@
 
 DS1307.cpp
 
+EEPROM.cpp
+
 main.cpp
 
 ST7789.cpp

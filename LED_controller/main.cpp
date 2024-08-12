@@ -6,6 +6,7 @@
 #include <util/delay.h>
 #include "ST7789.h"
 #include "DS1307.h"
+#include "EEPROM.h"
 
 // Массив для itoa
 char itoa_temp[9];
@@ -77,7 +78,7 @@ enum time_enum
 };	
 
 // Массив времени
-uint8_t time[7] = {0, 0, 0, 1, 1, 1, 24};	
+uint8_t time[7] = {0, 0, 12, 1, 1, 1, 24};	
 uint8_t time_temp[3] = {time[second], time[minute], time[hour]};	
 
 // Время в десятичном виде (часы)
@@ -89,7 +90,7 @@ char time_schedule[4][2] =
 	{6, 00},
 	{10, 00},
 	{18, 00},
-	{20, 00}		
+	{22, 00}		
 };
 
 // Массив расписания в десятичном виде
@@ -102,6 +103,22 @@ float time_schedule_Dec[4]=
 };	
 
 
+char time_schedule_adr[4][2] =
+{
+	{0, 1},
+	{2, 3},
+	{4, 5},
+	{6, 7}
+};
+
+// Массив расписания
+char time_schedule_default[4][2] =
+{
+	{6, 00},
+	{10, 00},
+	{18, 00},
+	{22, 00}
+};
 	
 
 // Прототипы функций
@@ -116,10 +133,13 @@ void Setup_GPIO(void);
 
 void Buttons_Handler(void);
 
+void EEPROM_Read(void);
+void EEPROM_Write(void);
+
 
 int main(void)
 {
-	_delay_ms(200);
+	_delay_ms(400);
 		
 	Setup_INT();
 	Setup_GPIO();
@@ -133,6 +153,25 @@ int main(void)
 	ST7789_FillScreen(BLACK);
 	ST7789_SetXYpos(0, 0);
 
+	// Проверка содержимого EEPROM
+	EEPROM_Read();
+	
+	for (int i = 0; i < 4; i++)
+	{
+		if (time_schedule[i][0] >= 24)
+		{
+			time_schedule[i][0] = time_schedule_default[i][0];
+		}
+		
+		if (time_schedule[i][1] >= 60)
+		{
+			time_schedule[i][1] = time_schedule_default[i][1];
+		}
+	}
+	
+	EEPROM_Write();
+	
+	
 	colour Text_Colour = WHITE;
 	colour Text_Colour_RED = RED;
 
@@ -1501,7 +1540,9 @@ void Buttons_Handler(void)
 					update_minute_night		= true;
 					update_word				= true;	
 					update_all				= true;
+					
 					//функция_записи_в_EEPROM!(time_schedule);
+					EEPROM_Write();
 					
 				}
 				break;
@@ -1555,6 +1596,28 @@ void Setup_GPIO(void)
 	DDRA = 0x00;						// Все вход
 }
 
+
+void EEPROM_Read(void)
+{
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 2; j++)
+		{
+			time_schedule[i][j] = EEPROM_ReadByte(time_schedule_adr[i][j]);
+		}
+	}
+}
+
+void EEPROM_Write(void)
+{
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 2; j++)
+		{
+			EEPROM_WriteByte(time_schedule_adr[i][j], time_schedule[i][j]);
+		}
+	}
+}
 
 
 ISR(INT0_vect)
