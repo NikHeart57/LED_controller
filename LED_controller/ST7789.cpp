@@ -1,10 +1,3 @@
-/*
- * ST7789.cpp
- *
- * Created: 15.05.2024 23:13:57
- *  Author: KolyaPC
- */ 
-
 #include <avr/io.h>
 #include <util/delay.h>
 #include "ST7789.h"

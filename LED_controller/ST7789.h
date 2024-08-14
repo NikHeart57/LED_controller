@@ -1,11 +1,3 @@
-/*
- * ST7789.h
- * –аботает в режиме 65k - 12-bit/pixel (RGB-5-6-5-bit input), 65K-Colors, 3Ah=Ф05hФ
- *
- *
- */ 
-
-
 #ifndef ST7789_H_
 #define ST7789_H_
 

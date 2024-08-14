@@ -1,10 +1,3 @@
-/*
- * DS1307.cpp
- *
- * Created: 15.05.2024 23:06:47
- *  Author: KolyaPC
- */ 
-
 #include <avr/io.h>
 #include "DS1307.h"
 #include "ST7789.h"
@@ -104,6 +97,7 @@ uint8_t I2CMRRead(void)
 	if ((TWSR & 0xF8) != MR_DATA_RECIEVED_ACK_RETURNED)		// Check value of TWI Status Register. Mask prescaler bits. If status different from MR_DATA_RECIEVED_ACK_RETURNED go to ERROR
 	{
 		I2CErrorHandler();
+		return 0;
 	}
 	return TWDR;											// Возврат данных
 }
@@ -115,6 +109,7 @@ uint8_t I2CMRReadLast(void)
 	if ((TWSR & 0xF8) != MR_DATA_RECIEVED_NOT_ACK_RETURNED)	// Check value of TWI Status Register. Mask prescaler bits. If status different from MR_DATA_RECIEVED_NOT_ACK_RETURNED go to ERROR
 	{
 		I2CErrorHandler();
+		return 0;
 	}
 	return TWDR;											// Возврат данных
 }
@@ -160,14 +155,17 @@ void DS1307_WriteTime(uint8_t time[])
 	I2CMTSendData(0x00);					// Передача адреса ячейки с которого начнется запись	// Ответ TWSR: 00101 = 0x28 - Data byte has been transmitted;	ACK has been received
 		
 	// ===== Передача данных =====			// Ответы TWSR: 00101 = 0x28 - Data byte has been transmitted;	ACK has been received
-	I2CMTSendData(DecToBin(time[0]));		// Адрес - 0x00	7-CH	6-10Sec		5-10Sec		4-10Sec		3-Sec	2-Sec	1-Sec	0-Sec	(CH-0 - вкл осцилятор, CH-1 - вЫкл осцилятор)
+	I2CMTSendData(DecToBin(time[0]));		// Адрес - 0x00	7-CH	6-10Sec		5-10Sec		4-10Sec		3-Sec	2-Sec	1-Sec	0-Sec	(CH - работа осцилятора часов (вкл/выкл микросхенмы DS1307) CH-0 - вкл осцилятор, CH-1 - вЫкл осцилятор)
 	I2CMTSendData(DecToBin(time[1]));		// Адрес - 0x01	7-0		6-10Min		5-10Min		4-10Min		3-Min	2-Min	1-Min	0-Min
 	I2CMTSendData(DecToBin(time[2]));		// Адрес - 0x02	7-0		6-12/24		5-10H/AMPM	4-10Hour	3-Hour	2-Hour	1-Hour	0-Hour
 	I2CMTSendData(DecToBin(time[3]));		// Адрес - 0x03	7-0		6-0			5-0			4-0			3-0		2-Day	1-Day	0-Day	(День недели)
 	I2CMTSendData(DecToBin(time[4]));		// Адрес - 0x04	7-0		6-0			5-10Date	4-10Date	3-Date	2-Date	1-Date	0-Date	(День месяца)
 	I2CMTSendData(DecToBin(time[5]));		// Адрес - 0x05	7-0		6-0			5-0			4-10Month	3-Month	2-Month	1-Month	0-Month
 	I2CMTSendData(DecToBin(time[6]));		// Адрес - 0x06	7-10Y	6-10Y		5-10Y		4-10Y		3-Y		2-Y		1-Y		0-Y
-	I2CMTSendData(0b00010000);				// Адрес - 0x07	7-OUT	6-0			5-0			4-SQWE		3-0		2-0		1-RS1	0-RS0	(OUT - логика на выходе; SQWE - генератор на выходе; RS1..0 - прескелереры частоты генератора SQWE)
+	I2CMTSendData(0b00010000);				// Адрес - 0x07	7-OUT	6-0			5-0			4-SQWE		3-0		2-0		1-RS1	0-RS0	
+	// OUT - логика на выходе (этот бит управляет логическим уровнем на выводе SQW/OUT, когда выход сигнала с прямоугольными импульсами отключен. Если SQWE = 0, то логический уровень на выводе SQW/OUT равен 1, если OUT = 1, и 0, если OUT = 0.); 
+	// SQWE - генератор на выходе (когда этот бит установлен в 1, включается генерация прямоугольных импульсов); 
+	// RS1..0 - прескелереры частоты генератора SQWE (00 - 1Гц, 01 - 4096Гц, 10 - 8192Гц, 11 - 32768Гц)
 	
 	// ===== Выключение I2C =====
 	I2CMTStop();							// Стоп от мастера										// Ответ TWSR: 11111 = 0xf8 - No relevant state information	available; TWINT = “0”

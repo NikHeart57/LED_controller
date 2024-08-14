@@ -139,20 +139,18 @@ void EEPROM_Write(void);
 
 int main(void)
 {
-	_delay_ms(400);
+	_delay_ms(50);
 		
 	Setup_INT();
 	Setup_GPIO();
 	Setup_TIM0();
 	Setup_TIM1();
-	
-	DS1307_ReadTime(time);	
-	
+		
 	ST7789_InitSPI();
 	ST7789_InitST7789();
 	ST7789_FillScreen(BLACK);
 	ST7789_SetXYpos(0, 0);
-
+		
 	// Проверка содержимого EEPROM
 	EEPROM_Read();
 	
@@ -171,7 +169,8 @@ int main(void)
 	
 	EEPROM_Write();
 	
-	
+	DS1307_ReadTime(time);
+		
 	colour Text_Colour = WHITE;
 	colour Text_Colour_RED = RED;
 
@@ -1690,13 +1689,13 @@ ISR(TIMER1_COMPA_vect)
 	}
 	
 	// Синхронизация
-	if (time[second] == 0 && time[minute] == 0 && update_sync_DS1307)
+	if (time[second] == 0 && time[minute] == 0 && time[hour] == 4 && update_sync_DS1307)
 	{
 		update_sync_DS1307 = false;
 		DS1307_ReadTime(time);
 	}
 	
-	if (time[second] == 0 && time[minute] == 1)
+	if (time[second] == 0 && time[minute] == 1 && time[hour] == 4)
 	{
 		update_sync_DS1307 = true;
 	}
